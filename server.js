@@ -7,6 +7,7 @@
   import ticketRoutes from "./routes/ticket.route.js";
   import userRoutes from "./routes/user.route.js";
   import notificationRoutes from "./routes/notification.route.js";
+  import departmentRoutes from "./routes/department.route.js";
   import errorHandler from "./middleware/errorHandler.js";
 
   // Load environment variables
@@ -35,6 +36,7 @@
   app.use("/api/tickets", ticketRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/notifications",notificationRoutes)
+  app.use("/api/departments",departmentRoutes)
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
