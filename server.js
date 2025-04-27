@@ -6,6 +6,7 @@
   import connectDB from "./config/db.js";
   import ticketRoutes from "./routes/ticket.route.js";
   import userRoutes from "./routes/user.route.js";
+  import notificationRoutes from "./routes/notification.route.js";
   import errorHandler from "./middleware/errorHandler.js";
 
   // Load environment variables
@@ -33,6 +34,7 @@
   // API routes
   app.use("/api/tickets", ticketRoutes);
   app.use("/api/users", userRoutes);
+  app.use("/api/notifications",notificationRoutes)
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
