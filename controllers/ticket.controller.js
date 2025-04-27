@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import Ticket from "../models/Ticket.model.js";
-import TemporaryUser from "../models/Ticket.model.js"; // Assuming you will replace this with the actual User model
+import Ticket from "../models/ticket.model.js";
+import TemporaryUser from "../models/ticket.model.js"; // Assuming you will replace this with the actual User model
 
 // Get all tickets
 export const getTickets = async (req, res) => {
