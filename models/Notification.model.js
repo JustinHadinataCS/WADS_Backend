@@ -3,17 +3,14 @@ const { Schema } = mongoose;
 
 const NotificationSchema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
-    email: {
-        ticketStatusUpdates: { type: Boolean, default: true },
-        newAgentResponses: { type: Boolean, default: true },
-        ticketResolution: { type: Boolean, default: true },
-        marketingUpdates: { type: Boolean, default: false }
-    },
-    inApp: {
-        desktopNotifications: { type: Boolean, default: true },
-        soundNotifications: { type: Boolean, default: true }
-    }
-});
+    title: { type: String, required: true },
+    content: { type: String, required: true },
+    isRead: { type: Boolean, default: false },
+    timestamp: { type: Date, default: Date.now },
+    type: { type: String, enum: ['system', 'ticket', 'message', 'feedback'], default: 'system' },
+    priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    link: { type: String, default: '' },
+},  { timestamps: true });
 
 const Notification = mongoose.model("Notification", NotificationSchema);
 
