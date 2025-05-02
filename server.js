@@ -9,6 +9,7 @@
   import notificationRoutes from "./routes/notification.route.js";
   import departmentRoutes from "./routes/department.route.js";
   import errorHandler from "./middleware/errorHandler.js";
+  import auditRoutes from "./routes/audit.route.js"
 
   // Load environment variables
   dotenv.config();
@@ -37,6 +38,7 @@
   app.use("/api/users", userRoutes);
   app.use("/api/notifications",notificationRoutes)
   app.use("/api/departments",departmentRoutes)
+  app.use("/api/audits",auditRoutes)
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
