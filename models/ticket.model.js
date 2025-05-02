@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import Audit from "./audit.model.js";
 const { Schema } = mongoose;
 
 // Temporary User schema mock (remove once actual User schema is available)
@@ -118,6 +119,45 @@ const TicketSchema = new Schema({
 }, {
     timestamps: true
 });
+
+TicketSchema.pre('findOneAndUpdate', async function (next) {
+    try {
+      const update = this.getUpdate();
+      const options = this.getOptions();
+      const userId = options.context?.user?._id; // requires user to be passed in options.context
+  
+      if (!userId) return next(); // Skip if no user info (shouldn't happen if secure)
+  
+      const ticketBefore = await this.model.findOne(this.getQuery()).lean();
+  
+      const auditEntries = [];
+  
+      // Fields to audit
+      const fieldsToAudit = ['status', 'priority', 'assignedTo', 'title', 'description'];
+  
+      for (let field of fieldsToAudit) {
+        if (update[field] !== undefined && update[field] !== ticketBefore[field]) {
+          auditEntries.push({
+            ticket: ticketBefore._id,
+            action: `${field}_changed`,
+            fieldChanged: field,
+            previousValue: ticketBefore[field],
+            newValue: update[field],
+            performedBy: userId
+          });
+        }
+      }
+  
+      if (auditEntries.length > 0) {
+        await Audit.insertMany(auditEntries);
+      }
+  
+      next();
+    } catch (err) {
+      console.error('Audit logging failed:', err);
+      next(); // Never block ticket update
+    }
+  });
 
 // Temporary Ticket model (TODO: Replace User model with actual User model when available)
 const Ticket = mongoose.model("Ticket", TicketSchema);
