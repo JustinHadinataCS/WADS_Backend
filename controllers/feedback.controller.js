@@ -7,8 +7,6 @@ export const getAgentFeedbackSummary = async (req, res) => {
     const { id } = req.params;
     
     try {
-        // Add error logging to help diagnose issues
-        console.log("Agent ID:", id);
         
         const stats = await Feedback.aggregate([
             { 
@@ -23,8 +21,7 @@ export const getAgentFeedbackSummary = async (req, res) => {
                 } 
             }
         ]);
-        
-        console.log("Aggregation results:", stats);
+    
 
         const formatted = {
             positive: 0,
@@ -38,7 +35,6 @@ export const getAgentFeedbackSummary = async (req, res) => {
 
         res.status(200).json(formatted);
     } catch (err) {
-        console.error("Error in getAgentFeedbackSummary:", err.message);
         res.status(500).json({ error: "Failed to retrieve feedback stats for agent" });
     }
 };
