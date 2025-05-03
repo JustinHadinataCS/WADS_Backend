@@ -109,13 +109,7 @@ const TicketSchema = new Schema({
         fileUrl: String,
         uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
         uploadedAt: { type: Date, default: Date.now }
-    }],
-    feedback: {
-        rating: { type: Number, min: 1, max: 5 },
-        comment: String,
-        submittedAt: Date,
-        submittedBy: { type: Schema.Types.ObjectId, ref: 'User' }
-    }
+    }]
 }, {
     timestamps: true
 });

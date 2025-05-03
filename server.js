@@ -11,6 +11,7 @@
   import errorHandler from "./middleware/errorHandler.js";
   import auditRoutes from "./routes/audit.route.js"
   import exportRoutes from "./routes/export.route.js"
+  import feedbackRoutes from "./routes/feedback.route.js"
 
   // Load environment variables
   dotenv.config();
@@ -41,6 +42,7 @@
   app.use("/api/departments",departmentRoutes)
   app.use("/api/audits",auditRoutes)
   app.use("/api/exports",exportRoutes)
+  app.use("/api/feedback",feedbackRoutes)
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
