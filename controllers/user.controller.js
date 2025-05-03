@@ -24,7 +24,7 @@ const registerUser = asyncHandler(async (req, res) => {
     phoneNumber,
     passwordHash: password, 
     department,
-    timezone,
+    timezone: timezone || null,
     role: role || 'user'
   });
 
