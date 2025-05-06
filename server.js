@@ -3,27 +3,38 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import http from "http"; // ✅ Needed to share server with Socket.io
+import { Server as SocketIOServer } from "socket.io";
+
 import connectDB from "./config/db.js";
 import ticketRoutes from "./routes/ticket.route.js";
 import userRoutes from "./routes/user.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 import departmentRoutes from "./routes/department.route.js";
-import errorHandler from "./middleware/errorHandler.js";
 import auditRoutes from "./routes/audit.route.js";
 import exportRoutes from "./routes/export.route.js";
 import feedbackRoutes from "./routes/feedback.route.js";
-import { Server } from "socket.io";
+import errorHandler from "./middleware/errorHandler.js";
+import socketHandler from "./socket/index.js"; // ✅ You'll create this
 
-const io = new Server(3000);
-io.on("connection", (socket) => {
-  console.log(socket.id);
-});
 // Load environment variables
 dotenv.config();
 
 // Initialize express app
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Create shared HTTP server
+const server = http.createServer(app);
+
+// Setup Socket.io
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: "*", // Change in production
+    methods: ["GET", "POST"],
+  },
+});
+socketHandler(io); // ✅ Attach socket logic
 
 // Security middleware
 app.use(helmet());
@@ -65,7 +76,7 @@ app.use(errorHandler);
 // MongoDB connection and server startup
 connectDB()
   .then(() => {
-    app.listen(PORT, () =>
+    server.listen(PORT, () =>
       console.log(`🚀 Server running on http://localhost:${PORT}`)
     );
   })
