@@ -15,11 +15,6 @@ A comprehensive healthcare management system backend built with Node.js, Express
   - Department assignment
   - Status tracking
 
-- **Appointment Management**
-  - Schedule medical appointments
-  - Doctor availability tracking
-  - Appointment status updates
-  - Patient history
 
 - **Notification System**
   - Real-time notifications
@@ -27,11 +22,7 @@ A comprehensive healthcare management system backend built with Node.js, Express
   - Customizable notification preferences
   - Multiple notification types (appointments, tickets, system alerts)
 
-- **Medical Records**
-  - Patient medical history
-  - Diagnosis management
-  - Prescription tracking
-  - Lab results
+
 
 ## 🛠️ Tech Stack
 
