@@ -127,6 +127,9 @@ if (process.env.NODE_ENV !== "test") {
 
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
+  socket.on("forum:send-message", (data) =>
+    socket.broadcast.emit("forum:message-received", data)
+  );
 });
 
 // Handle unhandled promise rejections
