@@ -2,6 +2,17 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/user.model.js';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Debug log
+console.log('Google OAuth Config:', {
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET ? '***' : undefined,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL
+});
 
 passport.serializeUser((user, done) => {
   done(null, user.id);

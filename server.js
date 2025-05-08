@@ -17,7 +17,7 @@ import exportRoutes from "./routes/export.route.js";
 import feedbackRoutes from "./routes/feedback.route.js";
 import errorHandler from "./middleware/errorHandler.js";
 import session from 'express-session';
-import passport from 'passport';
+import passport from './middleware/auth.js';
 import socketHandler from "./socket/index.js";
 
 // Load environment variables
@@ -56,7 +56,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Initialize session middleware
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  secret: process.env.JWT_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -69,11 +69,24 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Google OAuth routes
+app.get('/api/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/api/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req, res) => {
+    // Successful authentication, redirect home
+    res.redirect('/');
+  }
+);
+
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "WADS API Documentation"
+  customSiteTitle: "Semesta Medika API Documentation"
 }));
 
 // API routes
