@@ -27,9 +27,10 @@ const UserSchema = new Schema({
     required: [true, "Please enter phone number"], 
     trim: true 
   },
-  passwordHash: { 
-    type: String, 
-    required: [true, "Password is required"] 
+  password: {
+    type: String,
+    required: [true, "Password is required"],
+    minlength: [6, "Password must be at least 6 characters long"]
   },
   department: { 
     type: String, 
@@ -118,6 +119,10 @@ const UserSchema = new Schema({
       }
     }
   },
+  lastLogin: {
+    type: Date,
+    default: Date.now
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -128,21 +133,33 @@ const UserSchema = new Schema({
   }
 });
 
-// Method to check if password matches
-UserSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.passwordHash);
-};
-
-// Middleware to hash password before saving
+// Hash password before saving
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('passwordHash')) {
-    next();
+  if (!this.isModified('password')) {
+    return next();
   }
-  
-  const salt = await bcrypt.genSalt(10);
-  this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
-  this.updatedAt = Date.now();
+
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
+
+// Method to compare passwords
+UserSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    if (!this.password) {
+      throw new Error('Password not found for user');
+    }
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    console.error('Error in comparePassword:', error);
+    throw error;
+  }
+};
 
 // Update the updatedAt field on update
 UserSchema.pre('findOneAndUpdate', function(next) {
@@ -150,4 +167,31 @@ UserSchema.pre('findOneAndUpdate', function(next) {
   next();
 });
 
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+// Method to check if password matches
+UserSchema.methods.matchPassword = async function(enteredPassword) {
+  try {
+    console.log('matchPassword called:', {
+      hasPassword: !!this.password,
+      passwordLength: this.password?.length,
+      enteredPasswordLength: enteredPassword?.length
+    });
+
+    if (!this.password) {
+      console.log('No password found for user');
+      throw new Error('Password not found for user');
+    }
+
+    const isMatch = await bcrypt.compare(enteredPassword, this.password);
+    console.log('Password comparison result:', isMatch);
+    return isMatch;
+  } catch (error) {
+    console.error('Error in matchPassword:', error);
+    throw error;
+  }
+};
+
+// Create the model
+const User = mongoose.model('User', UserSchema);
+
+// Export the model
+export default User;

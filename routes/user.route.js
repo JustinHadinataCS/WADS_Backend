@@ -10,13 +10,17 @@ import {
   getUserById,
   updateUser,
   updateNotificationSettings,
-  updateSecuritySettings
+  updateSecuritySettings,
+  googleLogin,
+  googleCallback,
+  checkUserExists
 } from '../controllers/user.controller.js';
 import { protect, admin } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Public routes
+router.post('/check', checkUserExists);
 router.post('/', registerUser);
 router.post('/login', loginUser);
 
@@ -37,5 +41,9 @@ router.route('/:id')
 // Notification and security settings routes
 router.put('/:id/notifications', protect, updateNotificationSettings);
 router.put('/:id/security', protect, updateSecuritySettings);
+
+// Google OAuth routes
+router.get('/auth/google', googleLogin);
+router.get('/auth/google/callback', googleCallback);
 
 export default router;
