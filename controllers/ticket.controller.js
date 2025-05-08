@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 import Ticket from "../models/ticket.model.js";
 import Audit from "../models/audit.model.js";
 import TemporaryUser from "../models/ticket.model.js"; // Assuming you will replace this with the actual User model
-
+import Counter from '../models/counter.model.js';
+import User from '../models/user.model.js';
 
 // Get all tickets
 export const getTickets = async (req, res) => {
@@ -30,46 +31,72 @@ export const getTicket = async (req, res) => {
 	}
 };
 
-// Create a new ticket
+// Get a specific ticket by ID
 export const createTicket = async (req, res) => {
-
 	req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
-
+  
 	const ticketData = req.body;
-
-	// Validate required fields
-	if (!ticketData.title || !ticketData.category || !ticketData.description || !ticketData.department || !ticketData.priority) {
-		return res.status(400).json({ success: false, message: "Please provide all required fields" });
-	}
-
-	// Removed assignedTo validation
-
-	const newTicket = new Ticket({
+  
+/* 	// Validate required fields
+	if (!ticketData.title || !ticketData.category || !ticketData.description || !ticketData.department) {
+	  return res.status(400).json({ success: false, message: 'Please provide all required fields' });
+	} */
+  
+	try {
+	  // Round-robin agent assignment
+	  const agents = await User.find({ role: 'agent' }).sort({ _id: 1 });
+	  if (agents.length === 0) {
+		return res.status(400).json({ success: false, message: 'No agents available for assignment' });
+	  }
+  
+	  let counter = await Counter.findOne({ key: 'agent_rr_index' });
+	  if (!counter) {
+		counter = await Counter.create({ key: 'agent_rr_index', value: 0 });
+	  }
+  
+	  const agentIndex = counter.value % agents.length;
+	  const assignedAgent = agents[agentIndex];
+  
+	  // Update counter
+	  counter.value = (counter.value + 1) % agents.length;
+	  await counter.save();
+  
+	  // Create the ticket with assigned agent
+	  const newTicket = new Ticket({
 		...ticketData,
 		user: {
-			userId: ticketData.userId,
-			firstName: ticketData.firstName,
-			lastName: ticketData.lastName,
-			email: ticketData.email
-		}
-	});
-
-	try {
-		await newTicket.save();
-
-		// Audit Log: Ticket creation
-		const auditLog = new Audit({
-			ticket: newTicket._id,
-			action: 'created',
-			performedBy: req.user._id, // Assuming req.user is the logged-in user
-			timestamp: new Date()
-		});
-		await auditLog.save();  // Save the audit log
-
-		res.status(201).json({ success: true, data: newTicket });
+		  userId: ticketData.userId,
+		  firstName: ticketData.firstName,
+		  lastName: ticketData.lastName,
+		  email: ticketData.email
+		},
+		assignedTo: assignedAgent._id,
+		activityLog: [{
+		  action: 'created',
+		  performedBy: req.user._id
+		}, {
+		  action: 'assigned',
+		  performedBy: req.user._id,
+		  newValue: assignedAgent._id
+		}]
+	  });
+  
+	  await newTicket.save();
+  
+	  // Audit log
+	  const auditLog = new Audit({
+		ticket: newTicket._id,
+		action: 'created',
+		performedBy: req.user._id,
+		timestamp: new Date()
+	  });
+	  await auditLog.save();
+  
+	  res.status(201).json({ success: true, data: newTicket });
+  
 	} catch (error) {
-		console.error("Error in creating ticket:", error.message);
-		res.status(500).json({ success: false, message: "Server Error" });
+	  console.error('Error in creating ticket:', error.message);
+	  res.status(500).json({ success: false, message: 'Server Error' });
 	}
 };
 
@@ -145,4 +172,3 @@ export const deleteTicket = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error" });
     }
 };
-

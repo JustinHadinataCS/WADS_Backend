@@ -34,7 +34,7 @@ const TicketSchema = new Schema({
         lastName: String,
         email: String
     },
-    /*assignedTo: { 
+    assignedTo: { 
         type: Schema.Types.ObjectId, 
         ref: 'User',  // TODO: Replace with actual User model reference
         validate: {
@@ -46,7 +46,7 @@ const TicketSchema = new Schema({
             },
             message: 'Tickets can only be assigned to users with agent role'
         }
-    },*/
+    },
     department: {
         type: String,
         required: true,
