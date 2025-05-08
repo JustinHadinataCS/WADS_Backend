@@ -30,12 +30,12 @@ const TicketSchema = new Schema({
         validate: {
             validator: async function(value) {
                 if (!value) return true;
-                // Temporary reference to mock User model (TODO: replace with actual User model)
                 const user = await User.findById(value); 
-                return user && user.role === 'agent';
+                if (!user) return false;  // or throw a custom error message
+                return user.role === 'agent';
             },
-            message: 'Tickets can only be assigned to users with agent role'
-        }
+            message: 'Assigned user must exist and have the "agent" role'
+        }        
     },
     department: {
         type: String,

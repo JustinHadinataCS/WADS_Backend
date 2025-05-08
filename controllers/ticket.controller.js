@@ -4,10 +4,11 @@ import Audit from "../models/audit.model.js";
 import Counter from '../models/counter.model.js';
 import User from '../models/user.model.js';
 
-// Get all tickets
+// Get all tickets for the current user
 export const getTickets = async (req, res) => {
+
 	try {
-		const tickets = await Ticket.find({}).populate('user.userId').exec(); // Removed assignedTo
+		const tickets = await Ticket.find({ 'user.userId': req.user._id });
 		res.status(200).json({ success: true, data: tickets });
 	} catch (error) {
 		console.log("Error in fetching tickets:", error.message);
@@ -19,7 +20,7 @@ export const getTickets = async (req, res) => {
 export const getTicket = async (req, res) => {
 	const { id } = req.params;
 	try {
-		const ticket = await Ticket.findById(id).populate('user.userId').exec(); // Removed assignedTo
+		const ticket = await Ticket.findById(id); // Removed assignedTo
 		if (!ticket) {
 			return res.status(404).json({ success: false, message: "Ticket not found" });
 		}
@@ -102,7 +103,6 @@ export const searchAndFilterTickets = async (req, res) => {
 
 // Get a specific ticket by ID
 export const createTicket = async (req, res) => {
-	req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
   
 	const ticketData = req.body;
   
@@ -131,24 +131,21 @@ export const createTicket = async (req, res) => {
 	  await counter.save();
   
 	  // Create the ticket with assigned agent
-	  const newTicket = new Ticket({
-		...ticketData,
-		user: {
-		  userId: ticketData.userId,
-		  firstName: ticketData.firstName,
-		  lastName: ticketData.lastName,
-		  email: ticketData.email
-		},
-		assignedTo: assignedAgent._id,
-		activityLog: [{
-		  action: 'created',
-		  performedBy: req.user._id
-		}, {
-		  action: 'assigned',
-		  performedBy: req.user._id,
-		  newValue: assignedAgent._id
-		}]
-	  });
+const newTicket = new Ticket({
+	...ticketData,
+	user: {
+	  userId: req.user._id,
+	  firstName: req.user.firstName,
+	  lastName: req.user.lastName,
+	  email: req.user.email
+	},
+	assignedTo: assignedAgent._id,
+	activityLog: [
+	  { action: 'created', performedBy: req.user._id },
+	  { action: 'assigned', performedBy: req.user._id, newValue: assignedAgent._id }
+	]
+  });
+  
   
 	  await newTicket.save();
   
@@ -172,9 +169,6 @@ export const createTicket = async (req, res) => {
 // Update an existing ticket
 export const updateTicket = async (req, res) => {
 
-	req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
-
-
 	const { id } = req.params;
 	const ticketData = req.body;
 
@@ -186,7 +180,7 @@ export const updateTicket = async (req, res) => {
 	// Removed assignedTo validation
 
 	try {
-		const updatedTicket = await Ticket.findByIdAndUpdate(id, ticketData, { new: true,  context: { user: req.user } }).populate('user.userId').exec(); // Removed assignedTo
+		const updatedTicket = await Ticket.findByIdAndUpdate(id, ticketData, { new: true,  context: { user: req.user } }); // Removed assignedTo
 		if (!updatedTicket) {
 			return res.status(404).json({ success: false, message: "Ticket not found" });
 		}
@@ -208,8 +202,6 @@ export const updateTicket = async (req, res) => {
 };
 
 export const deleteTicket = async (req, res) => {
-    req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
-
     const { id } = req.params;
 
     console.log("Deleting ticket with ID:", id); // Log the ID
@@ -241,4 +233,3 @@ export const deleteTicket = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error" });
     }
 };
-
