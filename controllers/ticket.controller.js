@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
-import Ticket from "../models/Ticket.model.js";
-import TemporaryUser from "../models/Ticket.model.js"; // Assuming you will replace this with the actual User model
+import Ticket from "../models/ticket.model.js";
+import Audit from "../models/audit.model.js";
+import TemporaryUser from "../models/ticket.model.js"; // Assuming you will replace this with the actual User model
+
 
 // Get all tickets
 export const getTickets = async (req, res) => {
@@ -30,6 +32,9 @@ export const getTicket = async (req, res) => {
 
 // Create a new ticket
 export const createTicket = async (req, res) => {
+
+	req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
+
 	const ticketData = req.body;
 
 	// Validate required fields
@@ -51,6 +56,16 @@ export const createTicket = async (req, res) => {
 
 	try {
 		await newTicket.save();
+
+		// Audit Log: Ticket creation
+		const auditLog = new Audit({
+			ticket: newTicket._id,
+			action: 'created',
+			performedBy: req.user._id, // Assuming req.user is the logged-in user
+			timestamp: new Date()
+		});
+		await auditLog.save();  // Save the audit log
+
 		res.status(201).json({ success: true, data: newTicket });
 	} catch (error) {
 		console.error("Error in creating ticket:", error.message);
@@ -60,8 +75,13 @@ export const createTicket = async (req, res) => {
 
 // Update an existing ticket
 export const updateTicket = async (req, res) => {
+
+	req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
+
+
 	const { id } = req.params;
 	const ticketData = req.body;
+
 
 	if (!mongoose.Types.ObjectId.isValid(id)) {
 		return res.status(404).json({ success: false, message: "Invalid Ticket Id" });
@@ -70,10 +90,20 @@ export const updateTicket = async (req, res) => {
 	// Removed assignedTo validation
 
 	try {
-		const updatedTicket = await Ticket.findByIdAndUpdate(id, ticketData, { new: true }).populate('user.userId').exec(); // Removed assignedTo
+		const updatedTicket = await Ticket.findByIdAndUpdate(id, ticketData, { new: true,  context: { user: req.user } }).populate('user.userId').exec(); // Removed assignedTo
 		if (!updatedTicket) {
 			return res.status(404).json({ success: false, message: "Ticket not found" });
 		}
+
+		// Audit Log: Ticket update
+		const auditLog = new Audit({
+			ticket: updatedTicket._id,
+			action: 'updated',
+			performedBy: req.user._id,  // Assuming req.user is the logged-in user
+			timestamp: new Date()
+		});
+		await auditLog.save();  // Save the audit log
+
 		res.status(200).json({ success: true, data: updatedTicket });
 	} catch (error) {
 		console.log("Error in updating ticket:", error.message);
@@ -81,22 +111,38 @@ export const updateTicket = async (req, res) => {
 	}
 };
 
-// Delete a ticket
 export const deleteTicket = async (req, res) => {
-	const { id } = req.params;
+    req.user = { _id: new mongoose.Types.ObjectId() }; // Temporary mock for testing
 
-	if (!mongoose.Types.ObjectId.isValid(id)) {
-		return res.status(404).json({ success: false, message: "Invalid Ticket Id" });
-	}
+    const { id } = req.params;
 
-	try {
-		const deletedTicket = await Ticket.findByIdAndDelete(id);
-		if (!deletedTicket) {
-			return res.status(404).json({ success: false, message: "Ticket not found" });
-		}
-		res.status(200).json({ success: true, message: "Ticket deleted" });
-	} catch (error) {
-		console.log("Error in deleting ticket:", error.message);
-		res.status(500).json({ success: false, message: "Server Error" });
-	}
+    console.log("Deleting ticket with ID:", id); // Log the ID
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(404).json({ success: false, message: "Invalid Ticket Id" });
+    }
+
+    try {
+        const deletedTicket = await Ticket.findByIdAndDelete(id);
+        console.log("Deleted ticket:", deletedTicket); // Log the result of deletion
+
+        if (!deletedTicket) {
+            return res.status(404).json({ success: false, message: "Ticket not found" });
+        }
+
+        // Audit Log: Ticket deletion
+        const auditLog = new Audit({
+            ticket: deletedTicket._id,
+            action: 'deleted',
+            performedBy: req.user._id,  // Assuming req.user is the logged-in user
+            timestamp: new Date()
+        });
+        await auditLog.save();  // Save the audit log
+
+        res.status(200).json({ success: true, message: "Ticket deleted" });
+    } catch (error) {
+        console.error("Error in deleting ticket:", error.message);
+        res.status(500).json({ success: false, message: "Server Error" });
+    }
 };
+

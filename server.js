@@ -3,12 +3,20 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
 import connectDB from "./config/db.js";
 import ticketRoutes from "./routes/ticket.route.js";
 import userRoutes from "./routes/user.route.js";
+import notificationRoutes from "./routes/notification.route.js";
+import departmentRoutes from "./routes/department.route.js";
+import auditRoutes from "./routes/audit.route.js";
+import exportRoutes from "./routes/export.route.js";
+import feedbackRoutes from "./routes/feedback.route.js";
 import errorHandler from "./middleware/errorHandler.js";
 import session from 'express-session';
 import passport from 'passport';
+import socketHandler from "./socket/index.js";
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +24,18 @@ dotenv.config();
 // Initialize express app
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Create shared HTTP server
+const server = http.createServer(app);
+
+// Setup Socket.io
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: "*", // Change in production
+    methods: ["GET", "POST"],
+  },
+});
+socketHandler(io);
 
 // Security middleware
 app.use(helmet());
@@ -50,6 +70,11 @@ app.use(passport.session());
 // API routes
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/departments", departmentRoutes);
+app.use("/api/audits", auditRoutes);
+app.use("/api/exports", exportRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -68,7 +93,7 @@ app.use(errorHandler);
 if (process.env.NODE_ENV !== 'test') {
   connectDB()
     .then(() => {
-      app.listen(PORT, () =>
+      server.listen(PORT, () =>
         console.log(`🚀 Server running on http://localhost:${PORT}`)
       );
     })
@@ -78,10 +103,10 @@ if (process.env.NODE_ENV !== 'test') {
     });
 }
 
-export default app;
-
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
   console.error(`Error: ${err.message}`);
   process.exit(1);
 });
+
+export default app;
