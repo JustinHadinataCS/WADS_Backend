@@ -37,10 +37,10 @@ export const createTicket = async (req, res) => {
   
 	const ticketData = req.body;
   
-/* 	// Validate required fields
+	// Validate required fields
 	if (!ticketData.title || !ticketData.category || !ticketData.description || !ticketData.department) {
 	  return res.status(400).json({ success: false, message: 'Please provide all required fields' });
-	} */
+	}
   
 	try {
 	  // Round-robin agent assignment
