@@ -5,6 +5,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger.js';
 import connectDB from "./config/db.js";
 import ticketRoutes from "./routes/ticket.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -66,6 +68,13 @@ app.use(session({
 // Initialize passport
 app.use(passport.initialize());
 app.use(passport.session());
+
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "WADS API Documentation"
+}));
 
 // API routes
 app.use("/api/tickets", ticketRoutes);
