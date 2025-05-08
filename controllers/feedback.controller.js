@@ -98,8 +98,8 @@ export const createFeedback = async (req, res) => {
             return res.status(404).json({ error: "Ticket not found" });
         }
 
-        //const agentId = ticket.assignedTo;
-        const agentId = '681601504c7b2a5e86752d5f' //TESTING TESTING
+        const agentId = ticket.assignedTo; // PRODUCTION
+        // const agentId = '681601504c7b2a5e86752d5f' //TESTING TESTING
         if (!agentId) {
             return res.status(400).json({ error: "Ticket has no agent assigned" });
         }
