@@ -1,17 +1,7 @@
 import mongoose from "mongoose";
 import Audit from "./audit.model.js";
+import User from './user.model.js'; 
 const { Schema } = mongoose;
-
-// Temporary User schema mock (remove once actual User schema is available)
-const TemporaryUserSchema = new Schema({
-    firstName: String,
-    lastName: String,
-    email: String,
-    role: { type: String, enum: ['user', 'agent'] }
-});
-
-// Temporary User model (TODO: Replace with actual User model)
-const TemporaryUser = mongoose.model('User', TemporaryUserSchema);
 
 const TicketSchema = new Schema({
     title: { 
@@ -27,7 +17,7 @@ const TicketSchema = new Schema({
     user: {
         userId: {
             type: Schema.Types.ObjectId,
-            ref: 'User',  // TODO: Replace with actual User model reference
+            ref: 'User',
             required: true
         },
         firstName: String,
@@ -41,7 +31,7 @@ const TicketSchema = new Schema({
             validator: async function(value) {
                 if (!value) return true;
                 // Temporary reference to mock User model (TODO: replace with actual User model)
-                const user = await TemporaryUser.findById(value); 
+                const user = await User.findById(value); 
                 return user && user.role === 'agent';
             },
             message: 'Tickets can only be assigned to users with agent role'
@@ -114,6 +104,7 @@ const TicketSchema = new Schema({
     timestamps: true
 });
 
+// Add audit logging middleware
 TicketSchema.pre('findOneAndUpdate', async function (next) {
     try {
       const update = this.getUpdate();
@@ -151,9 +142,8 @@ TicketSchema.pre('findOneAndUpdate', async function (next) {
       console.error('Audit logging failed:', err);
       next(); // Never block ticket update
     }
-  });
+});
 
-// Temporary Ticket model (TODO: Replace User model with actual User model when available)
 const Ticket = mongoose.model("Ticket", TicketSchema);
 
 export default Ticket;

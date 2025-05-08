@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import Ticket from "../models/ticket.model.js";
 import Audit from "../models/audit.model.js";
-import TemporaryUser from "../models/ticket.model.js"; // Assuming you will replace this with the actual User model
 import Counter from '../models/counter.model.js';
 import User from '../models/user.model.js';
 
@@ -172,3 +171,4 @@ export const deleteTicket = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error" });
     }
 };
+
