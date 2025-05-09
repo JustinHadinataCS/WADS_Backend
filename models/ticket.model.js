@@ -71,8 +71,8 @@ const TicketSchema = new Schema({
     },
     status: { 
         type: String, 
-        enum: ['open', 'pending', 'in_progress', 'resolved', 'closed'], 
-        default: 'open' 
+        enum: ['pending', 'in_progress', 'resolved'], 
+        default: 'pending' 
     },
     priority: { 
         type: String, 
