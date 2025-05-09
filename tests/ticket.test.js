@@ -7,6 +7,14 @@ import Ticket from '../models/ticket.model.js';
 import Counter from '../models/counter.model.js';
 
 let mongoServer;
+let userToken;
+let agentToken;
+let testUser;
+let testAgent;
+
+// Set up test environment variables
+process.env.JWT_SECRET = 'test-jwt-secret';
+process.env.NODE_ENV = 'test';
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
@@ -20,286 +28,269 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  // Clear any previous data
-  await Ticket.deleteMany({});
   await User.deleteMany({});
+  await Ticket.deleteMany({});
   await Counter.deleteMany({});
-});
 
-describe('Ticket Management Tests', () => {
-  const testUser = {
+  // Create test user
+  testUser = {
     firstName: 'Test',
     lastName: 'User',
     email: 'test@example.com',
-    "phoneNumber": "0987654321",
-    "password": "AgentPass456!",
-    "department": "Technical",
-    "timezone": "GMT+8",
-    role: 'user',
+    phoneNumber: '1234567890',
+    password: 'password123',
+    department: 'Radiology',
+    timezone: 'UTC'
   };
 
-  let agentToken;
-  let userToken;
+  // Create test agent
+  testAgent = {
+    firstName: 'Test',
+    lastName: 'Agent',
+    email: 'agent@example.com',
+    phoneNumber: '0987654321',
+    password: 'password123',
+    department: 'Radiology',
+    timezone: 'UTC',
+    role: 'agent'
+  };
 
-  beforeEach(async () => {
-    // Create a user for login testing
-    const user = new User(testUser);
-    await user.save();
-    const res = await request(app).post('/api/users/login').send({
-      email: testUser.email,
-      password: testUser.password,
-    });
-    userToken = res.body.token;
+  // Register and login user
+  const userRes = await request(app)
+    .post('/api/users')
+    .send(testUser);
+  userToken = userRes.body.token;
 
-    // Create an agent for ticket assignment testing
-    const agent = new User({
-      ...testUser,
-      role: 'agent',
-      email: 'agent@example.com',
-    });
-    await agent.save();
-  });
+  // Register and login agent
+  const agentRes = await request(app)
+    .post('/api/users')
+    .send(testAgent);
+  agentToken = agentRes.body.token;
+});
+
+describe('Ticket Tests', () => {
+  const testTicket = {
+    title: 'Test Ticket',
+    description: 'This is a test ticket',
+    department: 'Radiology',
+    category: 'Software Problem',
+    priority: 'medium'
+  };
 
   describe('Create Ticket', () => {
-    it('should create a ticket successfully', async () => {
-      const newTicket = {
-        "title": "TESTING",
-        "description": "testsetsetsetsetsetsetestsetsetset",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
-
+    it('should create a new ticket successfully', async () => {
       const res = await request(app)
         .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
-        .send(newTicket);
+        .send(testTicket);
 
       expect(res.status).toBe(201);
-      expect(res.body.data).toHaveProperty('_id');
-      expect(res.body.data.title).toBe(newTicket.title);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.title).toBe(testTicket.title);
+      expect(res.body.data.assignedTo).toBeDefined();
     });
 
-    it('should not create a ticket with missing required fields', async () => {
+    it('should not create ticket without required fields', async () => {
       const res = await request(app)
         .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          title: 'Incomplete Ticket',
-        });
+        .send({});
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toContain('Please provide all required fields');
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should not create ticket without authentication', async () => {
+      const res = await request(app)
+        .post('/api/tickets')
+        .send(testTicket);
+
+      expect(res.status).toBe(401);
     });
   });
 
   describe('Get Tickets', () => {
-    it('should get all tickets', async () => {
-      const ticketData = {
-        "title": "a4",
-        "description": "The machine is making strange noises",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
+    beforeEach(async () => {
+      // Create multiple test tickets
+      await request(app)
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(testTicket);
 
-      await new Ticket(ticketData).save();
-
-      const res = await request(app).get('/api/tickets');
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBeGreaterThan(0);
+      await request(app)
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          ...testTicket,
+          title: 'Test Ticket 2'
+        });
     });
 
-    it('should get a single ticket by ID', async () => {
-      const ticketData = {
-        "title": "a4",
-        "description": "The machine is making strange noises",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
-
-      const ticket = await new Ticket(ticketData).save();
-
-      const res = await request(app).get(`/api/tickets/${ticket._id}`);
+    it('should get all tickets for the user', async () => {
+      const res = await request(app)
+        .get('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.title).toBe(ticketData.title);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBe(2);
     });
 
-    it('should return 404 for non-existing ticket', async () => {
-      const res = await request(app).get('/api/tickets/invalidTicketId');
+    it('should get a specific ticket by ID', async () => {
+      // First create a ticket
+      const createRes = await request(app)
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(testTicket);
+
+      const ticketId = createRes.body.data._id;
+
+      const res = await request(app)
+        .get(`/api/tickets/${ticketId}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data._id).toBe(ticketId);
+    });
+
+    it('should not get ticket with invalid ID', async () => {
+      const res = await request(app)
+        .get('/api/tickets/507f1f77bcf86cd799439011')  // Using a valid MongoDB ObjectId format but non-existent
+        .set('Authorization', `Bearer ${userToken}`);
+
       expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Ticket not found");
     });
   });
 
   describe('Search and Filter Tickets', () => {
-    it('should search tickets by keyword', async () => {
-      const ticketData = {
-        "title": "a4",
-        "description": "The machine is making strange noises",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
+    beforeEach(async () => {
+      // Create tickets with different properties
+      await request(app)
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          ...testTicket,
+          title: 'Network Issue Ticket',
+          category: 'Network Issue',
+          priority: 'high'
+        });
 
-      await new Ticket(ticketData).save();
-
-      const res = await request(app)
-        .get('/api/tickets/search')
-        .query({ keyword: 'searchable' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBeGreaterThan(0);
+      await request(app)
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          ...testTicket,
+          title: 'Software Problem Ticket',
+          category: 'Software Problem',
+          priority: 'medium'
+        });
     });
 
-    it('should filter tickets by department', async () => {
-      const ticketData = {
-        "title": "a4",
-        "description": "The machine is making strange noises",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
-
-      await new Ticket(ticketData).save();
-
+    it('should search tickets by keyword', async () => {
       const res = await request(app)
-        .get('/api/tickets/search')
-        .query({ keyword: 'Radiology' });
+        .get('/api/tickets/search?keyword=Network')
+        .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBeGreaterThan(0);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].title).toContain('Network');
+    });
+
+    it('should filter tickets by category', async () => {
+      const res = await request(app)
+        .get('/api/tickets/search?category=Software Problem')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].category).toBe('Software Problem');
+    });
+
+    it('should filter tickets by priority', async () => {
+      const res = await request(app)
+        .get('/api/tickets/search?priority=high')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].priority).toBe('high');
     });
   });
 
   describe('Update Ticket', () => {
-    it('should update an existing ticket', async () => {
-      const ticketData = {
-        "title": "a4",
-        "description": "The machine is making strange noises",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
+    let ticketId;
 
-      const ticket = await new Ticket(ticketData).save();
-
-      const updatedData = { description: 'Updated description' };
-
-      const res = await request(app)
-        .put(`/api/tickets/${ticket._id}`)
+    beforeEach(async () => {
+      const createRes = await request(app)
+        .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
-        .send(updatedData);
+        .send(testTicket);
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.description).toBe(updatedData.description);
+      ticketId = createRes.body.data._id;
     });
 
-    it('should return 404 for non-existing ticket', async () => {
+    it('should update ticket successfully', async () => {
+      const updateData = {
+        title: 'Updated Ticket Title',
+        priority: 'high'
+      };
+
       const res = await request(app)
-        .put('/api/tickets/invalidTicketId')
+        .put(`/api/tickets/${ticketId}`)
         .set('Authorization', `Bearer ${userToken}`)
-        .send({ description: 'Updated description' });
+        .send(updateData);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.title).toBe(updateData.title);
+      expect(res.body.data.priority).toBe(updateData.priority);
+    });
+
+    it('should not update ticket with invalid ID', async () => {
+      const res = await request(app)
+        .put('/api/tickets/invalid-id')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ title: 'Updated Title' });
 
       expect(res.status).toBe(404);
     });
   });
 
   describe('Delete Ticket', () => {
-    it('should delete an existing ticket', async () => {
-      const ticketData = {
-        "title": "a4",
-        "description": "The machine is making strange noises",
-        "department": "Radiology",
-        "category": "Equipment Issue",
-        "priority": "high",
-        "userId": "507f1f77bcf86cd799439011", // Valid MongoDB ObjectId
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john.doe@example.com",
-      
-        // Only required if category is "Equipment Issue"
-        "equipment": {
-          "name": "MRI Scanner Model X",
-          "type": "MRI Scanner"
-        }
-      };
+    let ticketId;
 
-      const ticket = await new Ticket(ticketData).save();
+    beforeEach(async () => {
+      const createRes = await request(app)
+        .post('/api/tickets')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send(testTicket);
 
+      ticketId = createRes.body.data._id;
+    });
+
+    it('should delete ticket successfully', async () => {
       const res = await request(app)
-        .delete(`/api/tickets/${ticket._id}`)
+        .delete(`/api/tickets/${ticketId}`)
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toBe('Ticket deleted');
+      expect(res.body.success).toBe(true);
+
+      // Verify ticket is deleted
+      const getRes = await request(app)
+        .get(`/api/tickets/${ticketId}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(getRes.status).toBe(404);
     });
 
-    it('should return 404 for non-existing ticket', async () => {
+    it('should not delete ticket with invalid ID', async () => {
       const res = await request(app)
-        .delete('/api/tickets/invalidTicketId')
+        .delete('/api/tickets/invalid-id')
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(404);
