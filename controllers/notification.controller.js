@@ -1,5 +1,5 @@
 import Notification from "../models/notification.model.js";
-
+import mongoose from "mongoose";
 // Create a new notification
 export const createNotification = async (req, res) => {
     const { userId, title, content, type, priority, link } = req.body;
@@ -39,18 +39,22 @@ export const getNotificationById = async (req, res) => {
     }
   };
   
-  // Get all notifications for a user
   export const getNotifications = async (req, res) => {
-    const { userId } = req.params;
-  
-    try {
-      const notifications = await Notification.find({ userId }).sort({ timestamp: -1 });
-      res.status(200).json(notifications);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      res.status(500).json({ message: 'Failed to fetch notifications' });
-    }
-  };
+  const { userId } = req.params;
+
+  // Check if the userId is a valid ObjectId
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Invalid user ID' });
+  }
+
+  try {
+    const notifications = await Notification.find({ userId: new mongoose.Types.ObjectId(userId) }).sort({ timestamp: -1 });
+    res.status(200).json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: 'Failed to fetch notifications' });
+  }
+};
 
   // Get all notifications in the entire system (for admin access)
 export const getAllNotifications = async (req, res) => {
