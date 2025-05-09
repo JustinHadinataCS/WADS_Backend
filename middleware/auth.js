@@ -99,4 +99,22 @@ export const admin = (req, res, next) => {
   }
 };
 
+export const agent = (req, res, next) => {
+  if (req.user && req.user.role === 'agent') {
+    next();
+  } else {
+    res.status(401);
+    throw new Error('Not authorized as a support agent');
+  }
+};
+
+export const user = (req, res, next) => {
+  if (req.user && req.user.role === 'user') {
+    next();
+  } else {
+    res.status(401);
+    throw new Error('Not authorized as a regular user');
+  }
+};
+
 export default passport; 
