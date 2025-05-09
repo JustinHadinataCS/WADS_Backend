@@ -5,22 +5,176 @@ import { admin, protect, user } from '../middleware/auth.js';
 
 router.use(protect)
 
-// Route to get all notifications for a specific user
-router.get('/users/:userId',user, getNotifications);
+/**
+ * @swagger
+ * tags:
+ *   name: Notifications
+ *   description: Notification management
+ */
 
-// Route to get a single notification by ID
-router.get('/:notificationId', getNotificationById);
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Notification:
+ *       type: object
+ *       required:
+ *         - user
+ *         - message
+ *       properties:
+ *         _id:
+ *           type: string
+ *         user:
+ *           type: string
+ *         message:
+ *           type: string
+ *         isRead:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ */
 
-// Route to get all notifications (admin access)
-router.get('/', admin, getAllNotifications);
+/**
+ * @swagger
+ * /api/notifications/users/{userId}:
+ *   get:
+ *     summary: Get all notifications for a specific user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of notifications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Notification'
+ */
+router.get('/users/:userId',user, getNotifications); // Route to get all notifications for a specific user
 
-// Route to create a notification
-router.post('/', admin, createNotification);
+/**
+ * @swagger
+ * /api/notifications/{notificationId}:
+ *   get:
+ *     summary: Get a single notification by ID
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Notification found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Notification'
+ */
+router.get('/:notificationId', getNotificationById); // Route to get a single notification by ID
 
-// Route to mark a notification as read
-router.put('/:notificationId/read', markAsRead);
+/**
+ * @swagger
+ * /api/notifications:
+ *   get:
+ *     summary: Get all notifications (admin only)
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Notification'
+ */
+router.get('/', admin, getAllNotifications); // Route to get all notifications (admin access)
 
-// Route to delete a notification
-router.delete('/:notificationId', deleteNotification);
+/**
+ * @swagger
+ * /api/notifications:
+ *   post:
+ *     summary: Create a new notification (admin only)
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user
+ *               - message
+ *             properties:
+ *               user:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Notification created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Notification'
+ */
+router.post('/', admin, createNotification); // Route to create a notification
+
+/**
+ * @swagger
+ * /api/notifications/{notificationId}/read:
+ *   put:
+ *     summary: Mark a notification as read
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Notification marked as read
+ */
+router.put('/:notificationId/read', markAsRead); // Route to mark a notification as read
+
+/**
+ * @swagger
+ * /api/notifications/{notificationId}:
+ *   delete:
+ *     summary: Delete a notification
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Notification deleted
+ */
+router.delete('/:notificationId', deleteNotification); // Route to delete a notification
 
 export default router;
