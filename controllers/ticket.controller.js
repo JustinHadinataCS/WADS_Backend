@@ -20,7 +20,7 @@ export const getTickets = async (req, res) => {
 export const getTicket = async (req, res) => {
 	const { id } = req.params;
 	try {
-		const ticket = await Ticket.findById(id); // Removed assignedTo
+		const ticket = await Ticket.findOne({ _id: id, 'user.userId': req.user._id });
 		if (!ticket) {
 			return res.status(404).json({ success: false, message: "Ticket not found" });
 		}
@@ -168,31 +168,30 @@ const newTicket = new Ticket({
 
 // Update an existing ticket
 export const updateTicket = async (req, res) => {
-
 	const { id } = req.params;
 	const ticketData = req.body;
 
-
 	if (!mongoose.Types.ObjectId.isValid(id)) {
-		return res.status(404).json({ success: false, message: "Invalid Ticket Id" });
+		return res.status(404).json({ success: false, message: "Invalid Ticket ID" });
 	}
 
-	// Removed assignedTo validation
-
 	try {
-		const updatedTicket = await Ticket.findByIdAndUpdate(id, ticketData, { new: true,  context: { user: req.user } }); // Removed assignedTo
-		if (!updatedTicket) {
-			return res.status(404).json({ success: false, message: "Ticket not found" });
+		const ticket = await Ticket.findOne({ _id: id, 'user.userId': req.user._id });
+
+		if (!ticket) {
+			return res.status(404).json({ success: false, message: "Ticket not found or not authorized" });
 		}
+
+		const updatedTicket = await Ticket.findByIdAndUpdate(id, ticketData, { new: true });
 
 		// Audit Log: Ticket update
 		const auditLog = new Audit({
 			ticket: updatedTicket._id,
 			action: 'updated',
-			performedBy: req.user._id,  // Assuming req.user is the logged-in user
+			performedBy: req.user._id,
 			timestamp: new Date()
 		});
-		await auditLog.save();  // Save the audit log
+		await auditLog.save();
 
 		res.status(200).json({ success: true, data: updatedTicket });
 	} catch (error) {
@@ -204,28 +203,27 @@ export const updateTicket = async (req, res) => {
 export const deleteTicket = async (req, res) => {
     const { id } = req.params;
 
-    console.log("Deleting ticket with ID:", id); // Log the ID
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(404).json({ success: false, message: "Invalid Ticket Id" });
     }
 
     try {
-        const deletedTicket = await Ticket.findByIdAndDelete(id);
-        console.log("Deleted ticket:", deletedTicket); // Log the result of deletion
+        const ticket = await Ticket.findOne({ _id: id, 'user.userId': req.user._id });
 
-        if (!deletedTicket) {
-            return res.status(404).json({ success: false, message: "Ticket not found" });
+        if (!ticket) {
+            return res.status(404).json({ success: false, message: "Ticket not found or not authorized" });
         }
+
+        const deletedTicket = await Ticket.findByIdAndDelete(id);
 
         // Audit Log: Ticket deletion
         const auditLog = new Audit({
             ticket: deletedTicket._id,
             action: 'deleted',
-            performedBy: req.user._id,  // Assuming req.user is the logged-in user
+            performedBy: req.user._id,
             timestamp: new Date()
         });
-        await auditLog.save();  // Save the audit log
+        await auditLog.save();
 
         res.status(200).json({ success: true, message: "Ticket deleted" });
     } catch (error) {
