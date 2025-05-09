@@ -66,24 +66,31 @@ import { chatService } from '../services/chat.service.js';
  */
 export const chatWithGemini = async (req, res) => {
     try {
+        console.log('Request body:', req.body);
+        console.log('User:', req.user);
+        
         const { message, messageType, conversationContext } = req.body;
         const userId = req.user.id;
         
         if (!message) {
+            console.log('No message provided');
             return res.status(400).json({
                 success: false,
                 error: "Message is required"
             });
         }
 
+        console.log('Calling chat service with:', { userId, message, messageType, conversationContext });
         const result = await chatService.processMessage(userId, message, {
             messageType,
             conversationContext
         });
+        console.log('Chat service result:', result);
         
-        res.json(result);
+        return res.status(200).json(result);
     } catch (error) {
-        res.status(500).json({
+        console.error('Chat error:', error);
+        return res.status(500).json({
             success: false,
             error: error.message
         });
