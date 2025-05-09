@@ -1,4 +1,6 @@
 import Department from "../models/department.model.js";
+import mongoose from "mongoose";
+import User from "../models/user.model.js";
 
 // Create a new department
 export const createDepartment = async (req, res) => {
@@ -66,6 +68,50 @@ export const getDepartmentById = async (req, res) => {
   } catch (error) {
     console.error('Error fetching department by ID:', error);
     res.status(500).json({ message: 'Failed to fetch department' });
+  }
+};
+
+export const addUserToDepartment = async (req, res) => {
+  const { departmentId } = req.params;
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ message: 'userId is required in request body' });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: 'Invalid userId format' });
+  }
+
+  try {
+    const department = await Department.findById(departmentId);
+    if (!department) {
+      return res.status(404).json({ message: 'Department not found' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const alreadyExists = department.users
+  .filter((user) => user !== null)
+  .some((user) => user.toString() === userId);
+
+    if (alreadyExists) {
+      return res.status(400).json({ message: 'User already in department' });
+    }
+
+    department.users.push(userId);
+    await department.save();
+
+    res.status(200).json({
+      message: 'User added to department successfully',
+      department,
+    });
+  } catch (error) {
+    console.error('Error adding user to department:', error);
+    res.status(500).json({ message: 'Failed to add user to department' });
   }
 };
 
