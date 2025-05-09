@@ -94,7 +94,7 @@ export const chatService = {
 
             // Make direct API call to Gemini 2.0 Flash
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCqmHK03_nCeBTncfeVJtbqDuCw4-sivSo`,
                 {
                     method: 'POST',
                     headers: {
@@ -105,6 +105,10 @@ export const chatService = {
                             parts: [{
                                 text: prompt
                             }]
+                        }],
+                        safetySettings: [{
+                            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                            threshold: "BLOCK_NONE"
                         }]
                     })
                 }
@@ -112,11 +116,12 @@ export const chatService = {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(`Gemini API error: ${JSON.stringify(error)}`);
+                console.error('Gemini API Error:', error);
+                throw new Error(`Gemini API error: ${error.error?.message || JSON.stringify(error)}`);
             }
 
             const result = await response.json();
-            const aiResponse = result.candidates[0].content.parts[0].text;
+            const aiResponse = result.candidates[0]?.content?.parts[0]?.text || 'No response generated';
 
             // Extract product category and other metadata
             const productCategory = this._extractProductCategory(message);
