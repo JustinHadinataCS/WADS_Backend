@@ -1,10 +1,19 @@
-export default {
-  transform: {},
+/** @type {import('jest').Config} */
+const config = {
+  transform: {
+    '^.+\\.js$': ['babel-jest', { configFile: './.babelrc' }]
+  },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   testEnvironment: 'node',
   verbose: true,
   testMatch: ['**/tests/**/*.test.js'],
-  setupFiles: ['dotenv/config']
-}; 
+  setupFilesAfterEnv: ['./tests/setup.js'],
+  forceExit: true,
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true
+};
+
+export default config; 
