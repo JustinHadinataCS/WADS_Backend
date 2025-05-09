@@ -15,14 +15,18 @@ A comprehensive healthcare management system backend built with Node.js, Express
   - Department assignment
   - Status tracking
 
+- **AI Chatbot**
+  - Product information assistance
+  - Intelligent responses using Google's Gemini AI
+  - Chat history tracking
+  - Message categorization and metadata
+  - Multi-language support
 
 - **Notification System**
   - Real-time notifications
   - Email notifications
   - Customizable notification preferences
   - Multiple notification types (appointments, tickets, system alerts)
-
-
 
 ## 🛠️ Tech Stack
 
@@ -33,6 +37,8 @@ A comprehensive healthcare management system backend built with Node.js, Express
   - JWT (JSON Web Tokens)
   - Passport.js
   - Google OAuth2.0
+- **AI Integration**:
+  - Google Gemini AI
 - **Real-time**: Socket.IO
 - **Documentation**: Swagger/OpenAPI
 - **Security**: 
@@ -95,6 +101,7 @@ The documentation includes:
 - Request/response schemas
 - Authentication requirements
 - Example requests
+- Chatbot interaction examples
 
 ## 🔐 Authentication
 
@@ -118,6 +125,12 @@ The API supports two authentication methods:
 - `GET /api/users/profile` - Get user profile
 - `PUT /api/users/profile` - Update user profile
 
+### Chat
+- `POST /api/chat` - Send message to AI chatbot
+- `GET /api/chat/history` - Get chat history
+- `DELETE /api/chat/:chatId` - Delete chat message
+- `PATCH /api/chat/:chatId` - Update chat message
+
 ### Tickets
 - `POST /api/tickets` - Create ticket
 - `GET /api/tickets` - Get all tickets
@@ -136,6 +149,48 @@ The API supports two authentication methods:
 - `GET /api/notifications` - Get user notifications
 - `PUT /api/notifications/:id/read` - Mark notification as read
 - `PUT /api/notifications/preferences` - Update notification preferences
+
+## 🤖 Chatbot Features
+
+The AI chatbot provides intelligent responses about Semesta Medika's products and services:
+
+### Product Information
+- Detailed pricing information
+- Product features and specifications
+- Use cases and applications
+- Product categories:
+  - Hospital Products
+  - Homecare Products
+  - Ward Furnitures
+
+### Chat Functionality
+- Real-time AI responses
+- Message history tracking
+- Message categorization
+- Sentiment analysis
+- Language detection (English/Indonesian)
+- Product category detection
+
+### Example Chat Interaction
+```json
+// Request
+POST /api/chat
+{
+  "message": "What is the price of the U-life Mobile Cart?",
+  "messageType": "product"
+}
+
+// Response
+{
+  "success": true,
+  "chatId": "507f1f77bcf86cd799439011",
+  "response": "The U-life Mobile Cart is priced at Rp 4.900.000. It features a mobile workstation with adjustable height, laptop holder, and cable management, perfect for hospital wards, clinics, and medical offices.",
+  "metadata": {
+    "messageType": "product",
+    "productCategory": "Hospital Products"
+  }
+}
+```
 
 ## 🔄 Error Handling
 
