@@ -1,10 +1,10 @@
 // FILE: controllers/userController.js
-import mongoose from 'mongoose';  // Add this at the top of your file
-import User from '../models/user.model.js';
-import asyncHandler from 'express-async-handler';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import passport from 'passport';
+import mongoose from "mongoose"; // Add this at the top of your file
+import User from "../models/user.model.js";
+import asyncHandler from "express-async-handler";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import passport from "passport";
 
 // @desc    Check if user exists
 // @route   POST /api/users/check
@@ -14,14 +14,14 @@ const checkUserExists = asyncHandler(async (req, res) => {
 
   if (!email) {
     res.status(400);
-    throw new Error('Please provide an email address');
+    throw new Error("Please provide an email address");
   }
 
   const userExists = await User.findOne({ email });
-  
+
   res.json({
     exists: !!userExists,
-    message: userExists ? 'Email is already registered' : 'Email is available'
+    message: userExists ? "Email is already registered" : "Email is available",
   });
 });
 
@@ -29,34 +29,52 @@ const checkUserExists = asyncHandler(async (req, res) => {
 // @route   POST /api/users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { 
-    firstName, 
-    lastName, 
-    email, 
-    phoneNumber, 
-    password, 
-    department, 
-    timezone, 
-    role 
+  const {
+    firstName,
+    lastName,
+    email,
+    phoneNumber,
+    password,
+    department,
+    timezone,
+    role,
   } = req.body;
 
   // Validate required fields
-  if (!firstName || !lastName || !email || !phoneNumber || !password || !department || !timezone) {
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !phoneNumber ||
+    !password ||
+    !timezone
+  ) {
     res.status(400);
-    throw new Error('Please fill in all required fields');
+    throw new Error("Please fill in all required fields");
+  }
+
+  // If role is not provided, assume it's 'user'
+  const assignedRole = role || "user";
+
+  // Require department only for non-user roles
+  if (assignedRole !== "user" && !department) {
+    res.status(400);
+    throw new Error("Department is required for this role");
   }
 
   // Validate password length
   if (password.length < 6) {
     res.status(400);
-    throw new Error('Password must be at least 6 characters long');
+    throw new Error("Password must be at least 6 characters long");
   }
 
   // Check if user exists
   const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(409);
-    throw new Error('Email is already registered. Please use a different email or try logging in.');
+    throw new Error(
+      "Email is already registered. Please use a different email or try logging in."
+    );
   }
 
   try {
@@ -69,25 +87,30 @@ const registerUser = asyncHandler(async (req, res) => {
       password,
       department,
       timezone,
-      role: role || 'user',
+      role: role || "user",
       notificationSettings: {
         email: {
           ticketStatusUpdates: true,
           newAgentResponses: true,
           ticketResolution: true,
-          marketingUpdates: false
+          marketingUpdates: false,
         },
         inApp: {
           desktopNotifications: true,
-          soundNotifications: true
-        }
+          soundNotifications: true,
+        },
       },
       securitySettings: {
         twoFactorEnabled: false,
         twoFactorMethod: null,
         lastPasswordChange: Date.now(),
-        passwordStrength: password.length >= 8 ? 'strong' : password.length >= 6 ? 'medium' : 'weak'
-      }
+        passwordStrength:
+          password.length >= 8
+            ? "strong"
+            : password.length >= 6
+            ? "medium"
+            : "weak",
+      },
     });
 
     res.status(201).json({
@@ -96,12 +119,12 @@ const registerUser = asyncHandler(async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id)
+      token: generateToken(user._id),
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error("Error creating user:", error);
     res.status(400);
-    throw new Error('Error creating user: ' + error.message);
+    throw new Error("Error creating user: " + error.message);
   }
 });
 
@@ -113,7 +136,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (!email || !password) {
     res.status(400);
-    throw new Error('Please provide email and password');
+    throw new Error("Please provide email and password");
   }
 
   // Get user
@@ -121,15 +144,15 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (!user) {
     res.status(401);
-    throw new Error('Invalid email or password');
+    throw new Error("Invalid email or password");
   }
 
   // Check password
   const isMatch = await user.comparePassword(password);
-  
+
   if (!isMatch) {
     res.status(401);
-    throw new Error('Invalid email or password');
+    throw new Error("Invalid email or password");
   }
 
   // Update last login timestamp
@@ -142,7 +165,7 @@ const loginUser = asyncHandler(async (req, res) => {
     lastName: user.lastName,
     email: user.email,
     role: user.role,
-    token: generateToken(user._id)
+    token: generateToken(user._id),
   });
 });
 
@@ -162,27 +185,33 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     user.department = req.body.department || user.department;
     user.timezone = req.body.timezone || user.timezone;
     user.profilePicture = req.body.profilePicture || user.profilePicture;
-    
+
     // Only admins can change roles
-    if (req.user.role === 'admin' && req.body.role) {
+    if (req.user.role === "admin" && req.body.role) {
       user.role = req.body.role;
     }
-    
+
     // Update notification settings if provided
     if (req.body.notificationSettings) {
       if (req.body.notificationSettings.email) {
-        Object.assign(user.notificationSettings.email, req.body.notificationSettings.email);
+        Object.assign(
+          user.notificationSettings.email,
+          req.body.notificationSettings.email
+        );
       }
       if (req.body.notificationSettings.inApp) {
-        Object.assign(user.notificationSettings.inApp, req.body.notificationSettings.inApp);
+        Object.assign(
+          user.notificationSettings.inApp,
+          req.body.notificationSettings.inApp
+        );
       }
     }
-    
+
     // Update security settings if provided
     if (req.body.securitySettings) {
       Object.assign(user.securitySettings, req.body.securitySettings);
     }
-    
+
     // Change password if provided
     if (req.body.password) {
       user.password = req.body.password; // Will be hashed by pre-validate hook
@@ -197,11 +226,11 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       lastName: updatedUser.lastName,
       email: updatedUser.email,
       role: updatedUser.role,
-      token: generateToken(updatedUser._id)
+      token: generateToken(updatedUser._id),
     });
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 });
 
@@ -218,38 +247,56 @@ const updateUser = asyncHandler(async (req, res) => {
     user.timezone = req.body.timezone || user.timezone;
     user.role = req.body.role || user.role;
     user.profilePicture = req.body.profilePicture || user.profilePicture;
-    
+
     // Update notification settings if provided
     if (req.body.notificationSettings) {
       if (req.body.notificationSettings.email) {
-        Object.assign(user.notificationSettings.email, req.body.notificationSettings.email);
+        Object.assign(
+          user.notificationSettings.email,
+          req.body.notificationSettings.email
+        );
       }
       if (req.body.notificationSettings.inApp) {
-        Object.assign(user.notificationSettings.inApp, req.body.notificationSettings.inApp);
+        Object.assign(
+          user.notificationSettings.inApp,
+          req.body.notificationSettings.inApp
+        );
       }
     }
-    
+
     // Update security settings if provided
     if (req.body.securitySettings) {
       Object.assign(user.securitySettings, req.body.securitySettings);
     }
 
     // Update admin dashboard metrics if provided and user is admin
-    if (req.body.adminDashboard && user.role === 'admin') {
+    if (req.body.adminDashboard && user.role === "admin") {
       if (req.body.adminDashboard.userStatistics) {
-        Object.assign(user.adminDashboard.userStatistics, req.body.adminDashboard.userStatistics);
+        Object.assign(
+          user.adminDashboard.userStatistics,
+          req.body.adminDashboard.userStatistics
+        );
       }
       if (req.body.adminDashboard.performanceMetrics) {
-        Object.assign(user.adminDashboard.performanceMetrics, req.body.adminDashboard.performanceMetrics);
+        Object.assign(
+          user.adminDashboard.performanceMetrics,
+          req.body.adminDashboard.performanceMetrics
+        );
       }
       if (req.body.adminDashboard.agentMetrics) {
-        Object.assign(user.adminDashboard.agentMetrics, req.body.adminDashboard.agentMetrics);
+        Object.assign(
+          user.adminDashboard.agentMetrics,
+          req.body.adminDashboard.agentMetrics
+        );
       }
       if (req.body.adminDashboard.customerSatisfaction) {
-        Object.assign(user.adminDashboard.customerSatisfaction, req.body.adminDashboard.customerSatisfaction);
+        Object.assign(
+          user.adminDashboard.customerSatisfaction,
+          req.body.adminDashboard.customerSatisfaction
+        );
       }
     }
-    
+
     // Change password if provided
     if (req.body.password) {
       user.password = req.body.password; // Will be hashed by pre-validate hook
@@ -263,11 +310,11 @@ const updateUser = asyncHandler(async (req, res) => {
       firstName: updatedUser.firstName,
       lastName: updatedUser.lastName,
       email: updatedUser.email,
-      role: updatedUser.role
+      role: updatedUser.role,
     });
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 });
 
@@ -277,20 +324,20 @@ const updateSecuritySettings = asyncHandler(async (req, res) => {
 
   if (!user) {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 
   // Check if current user is the user or an admin
-  if (req.user._id.toString() !== req.params.id && req.user.role !== 'admin') {
+  if (req.user._id.toString() !== req.params.id && req.user.role !== "admin") {
     res.status(403);
-    throw new Error('Not authorized to update this user');
+    throw new Error("Not authorized to update this user");
   }
 
   // Update security settings
   if (req.body.twoFactorEnabled !== undefined) {
     user.securitySettings.twoFactorEnabled = req.body.twoFactorEnabled;
   }
-  
+
   if (req.body.twoFactorMethod) {
     user.securitySettings.twoFactorMethod = req.body.twoFactorMethod;
   }
@@ -309,14 +356,14 @@ const updateSecuritySettings = asyncHandler(async (req, res) => {
   const updatedUser = await user.save();
 
   res.json({
-    securitySettings: updatedUser.securitySettings
+    securitySettings: updatedUser.securitySettings,
   });
 });
 
 // Generate JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d'
+    expiresIn: "30d",
   });
 };
 
@@ -324,13 +371,13 @@ const generateToken = (id) => {
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select('-password');
+  const user = await User.findById(req.user._id).select("-password");
 
   if (user) {
     res.json(user);
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 });
 
@@ -338,7 +385,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select('-password');
+  const users = await User.find({}).select("-password");
   res.json(users);
 });
 
@@ -350,10 +397,10 @@ const deleteUser = asyncHandler(async (req, res) => {
 
   if (user) {
     await User.deleteOne({ _id: req.params.id });
-    res.json({ message: 'User removed' });
+    res.json({ message: "User removed" });
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 });
 
@@ -361,13 +408,13 @@ const deleteUser = asyncHandler(async (req, res) => {
 // @route   GET /api/users/:id
 // @access  Private/Admin
 const getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.Did).select('-password');
+  const user = await User.findById(req.params.Did).select("-password");
 
   if (user) {
     res.json(user);
   } else {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 });
 
@@ -379,19 +426,19 @@ const updateNotificationSettings = asyncHandler(async (req, res) => {
 
   if (!user) {
     res.status(404);
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 
   // Check if current user is the user or an admin
-  if (req.user._id.toString() !== req.params.id && req.user.role !== 'admin') {
+  if (req.user._id.toString() !== req.params.id && req.user.role !== "admin") {
     res.status(403);
-    throw new Error('Not authorized to update this user');
+    throw new Error("Not authorized to update this user");
   }
 
   if (req.body.email) {
     Object.assign(user.notificationSettings.email, req.body.email);
   }
-  
+
   if (req.body.inApp) {
     Object.assign(user.notificationSettings.inApp, req.body.inApp);
   }
@@ -399,40 +446,44 @@ const updateNotificationSettings = asyncHandler(async (req, res) => {
   const updatedUser = await user.save();
 
   res.json({
-    notificationSettings: updatedUser.notificationSettings
+    notificationSettings: updatedUser.notificationSettings,
   });
 });
 
 // Google OAuth login
 const googleLogin = (req, res, next) => {
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-    prompt: 'select_account'
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    prompt: "select_account",
   })(req, res, next);
 };
 
 // Google OAuth callback
 const googleCallback = (req, res, next) => {
-  passport.authenticate('google', { 
-    failureRedirect: '/login',
-    session: false 
-  }, (err, user) => {
-    if (err) {
-      return next(err);
+  passport.authenticate(
+    "google",
+    {
+      failureRedirect: "/login",
+      session: false,
+    },
+    (err, user) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ message: "Authentication failed" });
+      }
+      const token = generateToken(user._id);
+      res.json({
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        token,
+      });
     }
-    if (!user) {
-      return res.status(401).json({ message: 'Authentication failed' });
-    }
-    const token = generateToken(user._id);
-    res.json({
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      token
-    });
-  })(req, res, next);
+  )(req, res, next);
 };
 
 // Export all your functions here
@@ -449,5 +500,5 @@ export {
   updateSecuritySettings,
   googleLogin,
   googleCallback,
-  checkUserExists
+  checkUserExists,
 };
