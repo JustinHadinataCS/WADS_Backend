@@ -14,7 +14,8 @@ import auditRoutes from "./routes/audit.route.js";
 import exportRoutes from "./routes/export.route.js";
 import feedbackRoutes from "./routes/feedback.route.js";
 import chatRoutes from "./routes/chat.routes.js";
-import dashboardRoutes from "./routes/dashboard.route.js"
+import dashboardRoutes from "./routes/dashboard.route.js";
+import analyticRoutes from "./routes/analytic.route.js";
 import errorHandler from "./middleware/errorHandler.js";
 import session from "express-session";
 import passport from "./middleware/auth.js";
@@ -104,7 +105,8 @@ app.use("/api/audits", auditRoutes);
 app.use("/api/exports", exportRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/dashboard", dashboardRoutes)
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/analytics",analyticRoutes)
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
