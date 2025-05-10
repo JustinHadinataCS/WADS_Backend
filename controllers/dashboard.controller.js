@@ -3,6 +3,7 @@ import User from "../models/user.model.js";
 import Audit from "../models/audit.model.js";
 import mongoose from 'mongoose';
 import Feedback from '../models/feedback.model.js';
+import responseTime from "../models/responseTime.model.js";
 
 export const getTicketOverview = async (req, res) => {
   try {
@@ -363,3 +364,55 @@ export const getRecentUserTickets = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving recent tickets for user' });
   }
 };
+
+//////////////////////////////////////////////////////////
+// SERVER PERFORMANCE METRICS////////////////////////////
+////////////////////////////////////////////////////////
+
+// Response Time
+
+export const getServerResponseTime = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 24 * 60 * 60 * 1000); // last 24 hours
+    const end = endDate ? new Date(endDate) : new Date();
+
+    const metrics = await responseTime.aggregate([
+      {
+        $match: {
+          timestamp: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $toDate: {
+              $subtract: [
+                { $toLong: "$timestamp" },
+                { $mod: [{ $toLong: "$timestamp" }, 1000 * 60 * 10] } // 10 min buckets
+              ]
+            }
+          },
+          avgResponseTimeMs: { $avg: "$durationMs" },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } },
+      {
+        $project: {
+          _id: 0,
+          interval: "$_id",
+          avgResponseTimeMs: { $round: ["$avgResponseTimeMs", 2] },
+          count: 1
+        }
+      }
+    ]);
+
+    res.json(metrics);
+  } catch (err) {
+    console.error('Error fetching server metrics:', err);
+    res.status(500).json({ error: 'Failed to fetch metrics' });
+  }
+};
+
