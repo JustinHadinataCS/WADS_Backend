@@ -41,14 +41,7 @@ const registerUser = asyncHandler(async (req, res) => {
   } = req.body;
 
   // Validate required fields
-  if (
-    !firstName ||
-    !lastName ||
-    !email ||
-    !phoneNumber ||
-    !password ||
-    !timezone
-  ) {
+  if (!firstName || !lastName || !email || !phoneNumber || !password) {
     res.status(400);
     throw new Error("Please fill in all required fields");
   }
@@ -57,9 +50,9 @@ const registerUser = asyncHandler(async (req, res) => {
   const assignedRole = role || "user";
 
   // Require department only for non-user roles
-  if (assignedRole !== "user" && !department) {
+  if (assignedRole !== "user" && (!department || !timezone)) {
     res.status(400);
-    throw new Error("Department is required for this role");
+    throw new Error("Department and timezone are required for this role");
   }
 
   // Validate password length
