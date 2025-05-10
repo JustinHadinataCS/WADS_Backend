@@ -1,19 +1,35 @@
 // routes/dashboard.routes.js
 import express from 'express';
-import { getTicketOverview, getUserStatistics, getCustomerSatisfaction, getRecentActivity, getRecentTickets, getAgentPerformance } from '../controllers/dashboard.controller.js';
+import { getTicketOverview, getUserStatistics, getCustomerSatisfaction, getRecentActivity, getRecentTickets, getAgentPerformance, 
+    getRecentAgentTickets, getRecentUserTickets, getAgentDashboardStats, getAgentTicketStatus } from '../controllers/dashboard.controller.js';
+import { admin, agent, protect, user } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/overview', getTicketOverview);
+// user dashboard
 
-router.get('/user-stats', getUserStatistics);
+router.get('/recent-user-ticket/:id', protect, user , getRecentUserTickets)
 
-router.get('/customer-satisfaction', getCustomerSatisfaction);
+// agent dashboard
 
-router.get('/recent-activity', getRecentActivity);
+router.get('/recent-agent-ticket', protect, agent, getRecentAgentTickets);
 
-router.get('/recent-ticket', getRecentTickets);
+router.get('/agent-stats', protect, agent, getAgentDashboardStats)
 
-router.get('/agent-performance', getAgentPerformance);
+router.get('/agent/ticket-status', protect, agent, getAgentTicketStatus);
+
+// admin dashboard
+
+router.get('/overview', protect, admin, getTicketOverview);
+
+router.get('/user-stats', protect, admin, getUserStatistics);
+
+router.get('/customer-satisfaction', protect, admin, getCustomerSatisfaction);
+
+router.get('/recent-activity', protect, admin, getRecentActivity);
+
+router.get('/recent-ticket', protect, admin, getRecentTickets);
+
+router.get('/agent-performance', protect, admin, getAgentPerformance);
 
 export default router;

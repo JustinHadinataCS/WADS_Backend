@@ -214,3 +214,152 @@ export const getAgentPerformance = async (req, res) => {
     res.status(500).json({ message: 'Unable to get agent performance' });
   }
 };
+
+// agent dashboard
+
+export const getAgentDashboardStats = async (req, res) => {
+  try {
+     const agentId = req.user._id;
+
+    // Total tickets assigned to the agent
+    const totalAssigned = await Ticket.countDocuments({ assignedTo: agentId });
+
+    // Tickets resolved this week
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // start of the week (Sunday)
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const resolvedThisWeek = await Ticket.countDocuments({
+      assignedTo: agentId,
+      status: 'resolved',
+      updatedAt: { $gte: startOfWeek }
+    });
+
+    // Customer satisfaction ratings for this agent
+    const feedbackAggregation = await Feedback.aggregate([
+      { $match: { agent: new mongoose.Types.ObjectId(agentId) } },
+      { $group: { _id: '$rating', count: { $sum: 1 } } }
+    ]);
+    
+
+    const totalCount = feedbackAggregation.reduce((sum, { count }) => sum + count, 0);
+    
+    const feedbackStats = { 
+      positive: 0, 
+      neutral: 0, 
+      negative: 0,
+      totalCount
+    };
+
+     feedbackAggregation.forEach(({ _id, count }) => {
+      feedbackStats[_id] = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+    });
+    
+    // Send response
+    res.status(200).json({
+      totalAssigned,
+      resolvedThisWeek,
+      feedbackStats
+    });
+
+  } catch (err) {
+    console.error('Agent dashboard error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getRecentAgentTickets = async (req, res) => {
+  const agentId = req.user._id;
+
+  if (!agentId) {
+    return res.status(401).json({ message: 'Unauthorized: Agent not authenticated' });
+  }
+
+  try {
+    const tickets = await Ticket.find({ assignedTo: agentId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title status priority createdAt')
+      .lean();
+
+    const formatted = tickets.map(ticket => ({
+      ticketId: ticket._id.toString().slice(-5),
+      subject: ticket.title,
+      status: ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
+      priority: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1),
+      createdAt: ticket.createdAt.toISOString().split('T')[0],
+      _id: ticket._id
+    }));
+
+    res.status(200).json({ recentTickets: formatted });
+  } catch (err) {
+    console.error('Failed to fetch recent tickets for agent:', err);
+    res.status(500).json({ message: 'Error retrieving recent tickets for agent' });
+  }
+};
+
+
+export const getAgentTicketStatus = async (req, res) => {
+  try {
+    const agentId = req.user._id;
+
+    const statusCounts = await Ticket.aggregate([
+      { $match: { assignedTo: new mongoose.Types.ObjectId(agentId) } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Format result into consistent structure
+    const formatted = {
+      pending: 0,
+      in_progress: 0,
+      resolved: 0
+    };
+
+    for (const s of statusCounts) {
+      formatted[s._id] = s.count;
+    }
+
+    res.status(200).json(formatted);
+  } catch (err) {
+    console.error('Error getting agent ticket status:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+// user dashboard
+
+export const getRecentUserTickets = async (req, res) => {
+  const userId = req.user._id;
+
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required in the route params' });
+  }
+
+  try {
+    const tickets = await Ticket.find({ 'user.userId': userId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title status priority createdAt')
+      .lean();
+
+    const formatted = tickets.map(ticket => ({
+      ticketId: ticket._id.toString().slice(-5),
+      subject: ticket.title,
+      status: ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
+      priority: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1),
+      createdAt: ticket.createdAt.toISOString().split('T')[0],
+      _id: ticket._id
+    }));
+
+    res.status(200).json({ recentTickets: formatted });
+  } catch (err) {
+    console.error('Failed to fetch recent tickets for user:', err);
+    res.status(500).json({ message: 'Error retrieving recent tickets for user' });
+  }
+};
