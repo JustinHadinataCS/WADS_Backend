@@ -1,7 +1,7 @@
 // routes/dashboard.routes.js
 import express from 'express';
 import { getTicketOverview, getUserStatistics, getCustomerSatisfaction, getRecentActivity, getRecentTickets, getAgentPerformance, 
-    getRecentAgentTickets, getRecentUserTickets, getAgentDashboardStats, getAgentTicketStatus, getServerResponseTime } from '../controllers/dashboard.controller.js';
+    getRecentAgentTickets, getRecentUserTickets, getAgentDashboardStats, getAgentTicketStatus, getServerResponseTime, getUptimeOverview } from '../controllers/dashboard.controller.js';
 import { admin, agent, protect, user } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -26,7 +26,7 @@ router.get('/recent-activity', admin, getRecentActivity);
 router.get('/recent-ticket', admin, getRecentTickets);
 router.get('/agent-performance', admin, getAgentPerformance);
 router.get('/response-time', admin, getServerResponseTime);
-
+router.get('/server-uptime', admin, getUptimeOverview);
 
 
 export default router;

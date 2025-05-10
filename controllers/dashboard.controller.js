@@ -4,6 +4,7 @@ import Audit from "../models/audit.model.js";
 import mongoose from 'mongoose';
 import Feedback from '../models/feedback.model.js';
 import responseTime from "../models/responseTime.model.js";
+import uptimeLog from '../models/uptimeLog.model.js';
 
 export const getTicketOverview = async (req, res) => {
   try {
@@ -369,7 +370,7 @@ export const getRecentUserTickets = async (req, res) => {
 // SERVER PERFORMANCE METRICS////////////////////////////
 ////////////////////////////////////////////////////////
 
-// Response Time
+// Response Time logs
 
 export const getServerResponseTime = async (req, res) => {
   try {
@@ -416,3 +417,57 @@ export const getServerResponseTime = async (req, res) => {
   }
 };
 
+// Uptime logs
+
+// Helper to calculate uptime percentage for a given period
+async function calculateUptimeForPeriod(start, end) {
+  const logs = await uptimeLog.find({
+    timestamp: { $gte: start, $lte: end }
+  }).sort({ timestamp: 1 });
+
+  if (logs.length < 2) return 100; // Assume 100% if not enough data
+
+  let totalUp = 0, totalDown = 0;
+  for (let i = 0; i < logs.length - 1; i++) {
+    const duration = logs[i + 1].timestamp - logs[i].timestamp;
+    if (logs[i].status === 'up') totalUp += duration;
+    else totalDown += duration;
+  }
+  const total = totalUp + totalDown;
+  return total ? (totalUp / total) * 100 : 100;
+}
+
+export const getUptimeOverview = async (req, res) => {
+  try {
+    const now = new Date();
+    const periods = {
+      last24h: [new Date(now - 24 * 60 * 60 * 1000), now],
+      last7d: [new Date(now - 7 * 24 * 60 * 60 * 1000), now],
+      last30d: [new Date(now - 30 * 24 * 60 * 60 * 1000), now],
+      last90d: [new Date(now - 90 * 24 * 60 * 60 * 1000), now],
+    };
+
+    const [uptime24h, uptime7d, uptime30d, uptime90d] = await Promise.all([
+      calculateUptimeForPeriod(...periods.last24h),
+      calculateUptimeForPeriod(...periods.last7d),
+      calculateUptimeForPeriod(...periods.last30d),
+      calculateUptimeForPeriod(...periods.last90d),
+    ]);
+
+    // Current status (last log)
+    const lastLog = await uptimeLog.findOne().sort({ timestamp: -1 });
+    const currentStatus = lastLog?.status === 'up' ? 'Operational' : 'Down';
+
+    res.json({
+      currentStatus,
+      uptime: {
+        '24h': uptime24h.toFixed(3),
+        '7d': uptime7d.toFixed(3),
+        '30d': uptime30d.toFixed(3),
+        '90d': uptime90d.toFixed(3),
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Unable to compute uptime overview' });
+  }
+};
