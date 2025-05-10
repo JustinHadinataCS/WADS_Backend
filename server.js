@@ -18,6 +18,8 @@ import dashboardRoutes from "./routes/dashboard.route.js"
 import errorHandler from "./middleware/errorHandler.js";
 import session from "express-session";
 import passport from "./middleware/auth.js";
+import responseTimeLogger from "./middleware/responseTimeLogger.js";
+import uptimeLogger from "./middleware/uptimeLogger.js";
 
 import { specs } from "./config/swagger.js";
 import { Server } from "socket.io";
@@ -38,6 +40,8 @@ const io = new Server(server, {
 // Middleware
 app.use(helmet());
 app.use(cors());
+app.use(responseTimeLogger);
+app.use(uptimeLogger);
 
 // Request logging in development
 if (process.env.NODE_ENV === "development") {
