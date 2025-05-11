@@ -6,9 +6,9 @@ import Feedback from '../models/feedback.model.js';
 import responseTime from "../models/responseTime.model.js";
 import uptimeLog from '../models/uptimeLog.model.js';
 
-export const getTicketOverview = async (req, res) => {
+export const getGlobalStats = async (req, res) => {
   try {
-    // Aggregate counts based on status
+    // Global ticket statistics
     const counts = await Ticket.aggregate([
       {
         $group: {
@@ -18,8 +18,7 @@ export const getTicketOverview = async (req, res) => {
       }
     ]);
 
-    // Map status counts to keys
-    const overview = {
+    const ticketStats = {
       total: 0,
       pending: 0,
       inProgress: 0,
@@ -27,16 +26,16 @@ export const getTicketOverview = async (req, res) => {
     };
 
     for (const item of counts) {
-      overview.total += item.count;
+      ticketStats.total += item.count;
       switch (item._id) {
         case "pending":
-          overview.pending = item.count;
+          ticketStats.pending = item.count;
           break;
         case "in_progress":
-          overview.inProgress = item.count;
+          ticketStats.inProgress = item.count;
           break;
         case "resolved":
-          overview.resolved = item.count;
+          ticketStats.resolved = item.count;
           break;
         default:
           break;
@@ -44,18 +43,10 @@ export const getTicketOverview = async (req, res) => {
     }
 
     // If your total includes all tickets regardless of status, consider using .countDocuments() instead
-    const totalCount = await Ticket.countDocuments();
-    overview.total = totalCount;
+    const totalTicketCount = await Ticket.countDocuments();
+    ticketStats.total = totalTicketCount;
 
-    res.status(200).json(overview);
-  } catch (err) {
-    console.error("Error fetching dashboard data:", err);
-    res.status(500).json({ message: "Failed to fetch ticket overview." });
-  }
-};
-
-export const getUserStatistics = async (req, res) => {
-  try {
+    // Global user statistics
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -66,32 +57,15 @@ export const getUserStatistics = async (req, res) => {
       User.countDocuments({ role: 'agent' })
     ]);
 
-    const stats = {
+    const userStats = {
       totalUsers,
       activeToday,
       newUsers,
       totalAgents
     };
 
-    res.status(200).json(stats);
-  } catch (error) {
-    console.error('Error fetching user statistics:', error);
-    res.status(500).json({ message: 'Failed to fetch user statistics' });
-  }
-};
-
-export const getCustomerSatisfaction = async (req, res) => {
-  try {
+    // Global feedback statistics
     const totalCount = await Feedback.countDocuments();
-
-    if (totalCount === 0) {
-      return res.status(200).json({
-        positive: 0,
-        neutral: 0,
-        negative: 0
-      });
-    }
-
     const ratings = await Feedback.aggregate([
       {
         $group: {
@@ -101,16 +75,28 @@ export const getCustomerSatisfaction = async (req, res) => {
       }
     ]);
 
-    const result = { positive: 0, neutral: 0, negative: 0 };
+    const feedbackStats = { 
+      positive: 0, 
+      neutral: 0, 
+      negative: 0, 
+      totalCount 
+    };
 
     ratings.forEach(({ _id, count }) => {
-      result[_id] = ((count / totalCount) * 100).toFixed(0); // Rounded percentage
+      feedbackStats[_id] = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
     });
+
+    // Final Result to be sent to frontend
+    const result ={
+      ticketStats,
+      userStats,
+      feedbackStats
+    }
 
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error fetching customer satisfaction:', error);
-    res.status(500).json({ message: 'Failed to fetch customer satisfaction' });
+    console.error('Error fetching global statistics:', error);
+    res.status(500).json({ message: 'Failed to fetch global statistics' });
   }
 };
 

@@ -1,6 +1,6 @@
 // routes/dashboard.routes.js
 import express from 'express';
-import { getTicketOverview, getUserStatistics, getCustomerSatisfaction, getRecentActivity, getRecentTickets, getAgentPerformance, 
+import { getGlobalStats, getRecentActivity, getRecentTickets, getAgentPerformance, 
     getRecentAgentTickets, getRecentUserTickets, getAgentDashboardStats, getAgentTicketStatus, getServerResponseTime, getUptimeOverview } from '../controllers/dashboard.controller.js';
 import { admin, agent, protect, user } from '../middleware/auth.js';
 
@@ -79,51 +79,19 @@ router.get('/agent/ticket-status', agent, getAgentTicketStatus);
 
 /**
  * @swagger
- * /api/dashboard/overview:
+ * /api/dashboard/global-stats:
  *   get:
- *     summary: Get overall ticket overview for admin
+ *     summary: Get global statistics - Tickets, users, ratings 
  *     tags: [Admin Dashboard]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Ticket overview
+ *         description: Global stats
  *       401:
  *         description: Unauthorized
  */
-router.get('/overview', admin, getTicketOverview);
-
-/**
- * @swagger
- * /api/dashboard/user-stats:
- *   get:
- *     summary: Get user statistics
- *     tags: [Admin Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User statistics
- *       401:
- *         description: Unauthorized
- */
-router.get('/user-stats', admin, getUserStatistics);
-
-/**
- * @swagger
- * /api/dashboard/customer-satisfaction:
- *   get:
- *     summary: Get customer satisfaction ratings
- *     tags: [Admin Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Satisfaction ratings
- *       401:
- *         description: Unauthorized
- */
-router.get('/customer-satisfaction', admin, getCustomerSatisfaction);
+router.get('/global-stats', admin, getGlobalStats);
 
 /**
  * @swagger
