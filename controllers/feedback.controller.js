@@ -39,29 +39,6 @@ export const getAgentFeedbackSummary = async (req, res) => {
     }
 };
 
-// Retrieving Feedback (Ratings count) For Admin's Dashboard
-export const getGlobalFeedbackSummary = async (req, res) => {
-    try {
-        const stats = await Feedback.aggregate([
-            { $group: { _id: "$rating", count: { $sum: 1 } } }
-        ]);
-
-        const formatted = {
-            positive: 0,
-            neutral: 0,
-            negative: 0
-        };
-
-        stats.forEach(s => {
-            formatted[s._id] = s.count;
-        });
-
-        res.status(200).json(formatted);
-    } catch (err) {
-        res.status(500).json({ error: "Failed to retrieve global feedback stats" });
-    }
-};
-
 // Retrieving feedback for each ticket
 export const getFeedbackForTicket = async (req, res) => {
     const { id } = req.params;
@@ -98,8 +75,12 @@ export const createFeedback = async (req, res) => {
             return res.status(404).json({ error: "Ticket not found" });
         }
 
-        const agentId = ticket.assignedTo; // PRODUCTION
-        // const agentId = '681601504c7b2a5e86752d5f' //TESTING TESTING
+        if(ticket.status !== "resolved"){
+            return res.status(400).json({error: "Ticket has not been resolved"})
+        }
+
+        const agentId = ticket.assignedTo; 
+
         if (!agentId) {
             return res.status(400).json({ error: "Ticket has no agent assigned" });
         }

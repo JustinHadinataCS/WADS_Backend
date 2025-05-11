@@ -1,6 +1,6 @@
 import express from 'express'
-import { getAgentFeedbackSummary, getGlobalFeedbackSummary, getFeedbackForTicket, createFeedback } from '../controllers/feedback.controller.js'; 
-import { protect, admin, agent, user } from "../middleware/auth.js";
+import { getAgentFeedbackSummary, getFeedbackForTicket, createFeedback } from '../controllers/feedback.controller.js'; 
+import { protect, agent, user } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -30,24 +30,6 @@ router.use(protect);
  *         description: Server error
  */
 router.get('/agents/:id', agent, getAgentFeedbackSummary);
-
-/**
- * @swagger
- * /api/feedback:
- *   get:
- *     summary: Get global feedback summary for all agents
- *     tags: [Feedback]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Global feedback summary
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/', admin, getGlobalFeedbackSummary);
 
 /**
  * @swagger
