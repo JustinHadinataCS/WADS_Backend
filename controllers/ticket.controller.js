@@ -150,6 +150,7 @@ export const createTicket = async (req, res) => {
     // Audit log
     const auditLog = new Audit({
       ticket: newTicket._id,
+	  ticketId: newTicket._id.toString(),
       action: 'created',
       performedBy: req.user._id,
       timestamp: new Date()
@@ -221,6 +222,7 @@ export const updateTicket = async (req, res) => {
     // Audit Log: Ticket update
     const auditLog = new Audit({
       ticket: updatedTicket._id,
+	  ticketId: updatedTicket._id.toString(),
       action: 'updated',
       performedBy: req.user._id,
       timestamp: new Date()
@@ -291,6 +293,7 @@ export const deleteTicket = async (req, res) => {
     // Audit Log: Ticket deletion
     const auditLog = new Audit({
       ticket: deletedTicket._id,
+	  ticketId: deletedTicket._id.toString(),
       action: 'deleted',
       performedBy: req.user._id,
       timestamp: new Date()

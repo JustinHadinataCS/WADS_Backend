@@ -7,6 +7,10 @@ const AuditSchema = new Schema({
     ref: 'Ticket',
     required: true
   },
+  ticketId: {
+  type: String,
+  required: true
+},
   action: {
     type: String,
     required: true,

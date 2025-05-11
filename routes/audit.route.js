@@ -40,7 +40,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/audit/recent:
+ * /api/audits/recent:
  *   get:
  *     summary: Get recent audit logs (for dashboard)
  *     tags: [Audit Logs]
@@ -64,7 +64,7 @@ router.get("/recent", protect, admin, getRecentAuditLogs); // Route for fetching
 
 /**
  * @swagger
- * /api/audit:
+ * /api/audits:
  *   get:
  *     summary: Get all audit logs with pagination (Admin only)
  *     tags: [Audit Logs]
