@@ -1,5 +1,6 @@
 import Notification from "../models/notification.model.js";
 import mongoose from "mongoose";
+
 // Create a new notification
 export const createNotification = async (req, res) => {
     const { userId, title, content, type, priority, link } = req.body;
@@ -40,7 +41,7 @@ export const getNotificationById = async (req, res) => {
   };
   
   export const getNotifications = async (req, res) => {
-  const { userId } = req.params;
+  const userId = req.user._id;
 
   // Check if the userId is a valid ObjectId
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -56,16 +57,23 @@ export const getNotificationById = async (req, res) => {
   }
 };
 
-  // Get all notifications in the entire system (for admin access)
-export const getAllNotifications = async (req, res) => {
-    try {
-      const notifications = await Notification.find().sort({ timestamp: -1 });
-      res.status(200).json(notifications);
-    } catch (error) {
-      console.error('Error fetching all notifications:', error);
-      res.status(500).json({ message: 'Failed to fetch notifications' });
-    }
-  };
+  // Get admin notifications
+export const getAdminNotifications = async (req, res) => {
+  // Ensure only admin users can access this route
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Access denied. Admins only.' });
+  }
+
+  try {
+    // Shared admin notifications (not tied to a specific user)
+    const notifications = await Notification.find({ isAdminNotification: true }).sort({ timestamp: -1 });
+    res.status(200).json(notifications);
+  } catch (error) {
+    console.error('Error fetching admin notifications:', error);
+    res.status(500).json({ message: 'Failed to fetch notifications' });
+  }
+};
+
   
   // Mark notification as read
   export const markAsRead = async (req, res) => {

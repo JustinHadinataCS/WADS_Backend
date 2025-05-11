@@ -1,12 +1,19 @@
 import Department from "../models/department.model.js";
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
+import Notification from "../models/notification.model.js";
 
 // Create a new department
 export const createDepartment = async (req, res) => {
   const { name, description, users } = req.body;
 
   try {
+    // Check if the department already exists
+    const existingDepartment = await Department.findOne({ name });
+    if (existingDepartment) {
+      return res.status(400).json({ message: `Department with name "${name}" already exists.` });
+    }
+
     const department = new Department({
       name,
       description,
@@ -14,12 +21,40 @@ export const createDepartment = async (req, res) => {
     });
 
     await department.save();
+
+    // 🔔 Agent Notification
+    const agentNotifications = users.map(userId => new Notification({
+      userId,
+      title: 'Added to Department',
+      content: `You have been added to the "${name}" department.`,
+      type: 'department',
+      priority: 'medium',
+      link: `/departments/${department._id}`
+    }));
+
+    // 🔔 Admin Notification
+    const adminNotification = new Notification({
+      title: 'New Department Created',
+      content: `A new department "${name}" has been created.`,
+      type: 'department',
+      priority: 'medium',
+      link: `/departments/${department._id}`,
+      isAdminNotification: true
+    });
+
+    // Save all notifications
+    await Promise.all([
+      ...agentNotifications.map(n => n.save()),
+      adminNotification.save()
+    ]);
+
     res.status(201).json({ message: 'Department created successfully', department });
   } catch (error) {
     console.error('Error creating department:', error);
     res.status(500).json({ message: 'Failed to create department' });
   }
 };
+
 
 // Get all user IDs associated with a specific department
 export const getUsersByDepartment = async (req, res) => {
@@ -105,6 +140,28 @@ export const addUserToDepartment = async (req, res) => {
     department.users.push(userId);
     await department.save();
 
+    // 🔔 User Notification
+    const userNotification = new Notification({
+      userId,
+      title: 'Added to Department',
+      content: `You have been added to the "${department.name}" department.`,
+      type: 'department',
+      priority: 'medium',
+      link: `/departments/${department._id}`
+    });
+
+    // 🔔 Admin Notification
+    const adminNotification = new Notification({
+      title: 'User Added to Department',
+      content: `Agent ${user.firstName+" "+user.lastName} has been added to the "${department.name}" department.`,
+      type: 'department',
+      priority: 'low',
+      link: `/departments/${department._id}`,
+      isAdminNotification: true
+    });
+
+    await Promise.all([userNotification.save(), adminNotification.save()]);
+
     res.status(200).json({
       message: 'User added to department successfully',
       department,
@@ -131,6 +188,31 @@ export const updateDepartment = async (req, res) => {
     department.users = users || department.users;
 
     await department.save();
+
+     // 🔔 Notify all users in the department
+    const userNotifications = (department.users || []).map((userId) => {
+      return new Notification({
+        userId,
+        title: 'Department Updated',
+        content: `The "${department.name}" department has been updated.`,
+        type: 'department',
+        priority: 'low',
+        link: `/departments/${department._id}`
+      });
+    });
+
+    // 🔔 Admin notification
+    const adminNotification = new Notification({
+      title: 'Department Updated',
+      content: `The "${department.name}" department has been updated.`,
+      type: 'department',
+      priority: 'low',
+      link: `/departments/${department._id}`,
+      isAdminNotification: true
+    });
+
+    await Promise.all([...userNotifications.map(n => n.save()), adminNotification.save()]);
+
     res.status(200).json({ message: 'Department updated successfully', department });
   } catch (error) {
     console.error('Error updating department:', error);
@@ -147,6 +229,34 @@ export const deleteDepartment = async (req, res) => {
     if (!department) {
       return res.status(404).json({ message: 'Department not found' });
     }
+
+     const departmentUsers = department.users || [];
+
+    await department.deleteOne();
+
+    // 🔔 Notify department users
+    const userNotifications = departmentUsers.map((userId) => {
+      return new Notification({
+        userId,
+        title: 'Department Deleted',
+        content: `The department "${department.name}" you were part of has been deleted.`,
+        type: 'department',
+        priority: 'medium',
+        link: `/departments`
+      });
+    });
+
+    // 🔔 Admin Notification
+    const adminNotification = new Notification({
+      title: 'Department Deleted',
+      content: `The department "${department.name}" has been deleted.`,
+      type: 'department',
+      priority: 'medium',
+      link: `/departments`,
+      isAdminNotification: true
+    });
+
+    await Promise.all([...userNotifications.map(n => n.save()), adminNotification.save()]);
 
     res.status(200).json({ message: 'Department deleted successfully' });
   } catch (error) {

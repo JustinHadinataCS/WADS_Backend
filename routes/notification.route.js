@@ -1,6 +1,6 @@
 import express from 'express'
 const router = express.Router();
-import { createNotification, deleteNotification, getNotificationById, getNotifications, markAsRead, getAllNotifications } from '../controllers/notification.controller.js';
+import { createNotification, deleteNotification, getNotificationById, getNotifications, markAsRead, getAdminNotifications } from '../controllers/notification.controller.js';
 import { admin, protect, user } from '../middleware/auth.js';
 
 router.use(protect)
@@ -59,7 +59,7 @@ router.use(protect)
  *               items:
  *                 $ref: '#/components/schemas/Notification'
  */
-router.get('/users/:userId',user, getNotifications); // Route to get all notifications for a specific user
+router.get('/users', getNotifications); // Route to get all notifications for a specific user
 
 /**
  * @swagger
@@ -103,7 +103,7 @@ router.get('/:notificationId', getNotificationById); // Route to get a single no
  *               items:
  *                 $ref: '#/components/schemas/Notification'
  */
-router.get('/', admin, getAllNotifications); // Route to get all notifications (admin access)
+router.get('/', admin, getAdminNotifications); // Route to get admin notification
 
 /**
  * @swagger

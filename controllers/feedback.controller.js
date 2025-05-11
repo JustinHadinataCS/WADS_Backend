@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Feedback from "../models/feedback.model.js";
 import Ticket from '../models/ticket.model.js';
+import Notification from "../models/notification.model.js";
 
 // Retrieving Feedback (Ratings count) For Agent's Dashboard
 export const getAgentFeedbackSummary = async (req, res) => {
@@ -58,9 +59,9 @@ export const getFeedbackForTicket = async (req, res) => {
 
 // Creating feedback
 export const createFeedback = async (req, res) => {
-    const { userId, rating } = req.body;
+    const { rating } = req.body;
     const { id } = req.params;
-    //const userId = req.user._id;
+    const userId = req.user._id;
 
     try {
         // Check if user already submitted feedback for this ticket
@@ -94,6 +95,42 @@ export const createFeedback = async (req, res) => {
         });
 
         await feedback.save();
+
+         // 🔔 User Notification
+        const userNotification = new Notification({
+        userId,
+        title: 'Feedback Submitted',
+        content: `Your feedback for ticket "${ticket.title}" has been successfully submitted.`,
+        type: 'feedback',
+        priority: 'low',
+        link: `/tickets/${ticket._id}`
+        });
+
+        // 🔔 Agent Notification
+        const agentNotification = new Notification({
+        userId: agentId,
+        title: 'New Feedback Received',
+        content: `You received feedback for resolved ticket "${ticket.title}".`,
+        type: 'feedback',
+        priority: 'medium',
+        link: `/tickets/${ticket._id}`
+        });
+
+        // 🔔 Admin Notification
+        const adminNotification = new Notification({
+        title: 'New Feedback Submitted',
+        content: `Feedback was submitted for ticket "${ticket.title}" by a user.`,
+        type: 'feedback',
+        priority: 'medium',
+        link: `/tickets/${ticket._id}`,
+        isAdminNotification: true
+        });
+
+        await Promise.all([
+        userNotification.save(),
+        agentNotification.save(),
+        adminNotification.save()
+        ]);
 
         res.status(201).json(feedback);
     } catch (err) {
