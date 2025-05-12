@@ -206,10 +206,17 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     }
 
     // Change password if provided
-    if (req.body.password) {
-      user.password = req.body.password; // Will be hashed by pre-validate hook
-      user.securitySettings.lastPasswordChange = Date.now();
-    }
+if (req.body.password && req.body.currentPassword) {
+  // Verify current password first
+  const isPasswordValid = await user.matchPassword(req.body.currentPassword);
+  if (!isPasswordValid) {
+    res.status(401);
+    throw new Error("Current password is incorrect");
+  }
+  
+  user.password = req.body.password; // Will be hashed by pre-validate hook
+  user.securitySettings.lastPasswordChange = Date.now();
+}
 
     const updatedUser = await user.save();
 
