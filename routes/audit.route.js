@@ -1,66 +1,10 @@
 // routes/audit.routes.js
 
 import express from "express";
-import { getRecentAuditLogs, getAllAuditLogs } from "../controllers/audit.controller.js";
+import { getAllAuditLogs } from "../controllers/audit.controller.js";
 import { protect, admin } from '../middleware/auth.js';
 
 const router = express.Router();
-
-/**
- * @swagger
- * tags:
- *   name: Audit Logs
- *   description: API for managing audit logs
- */
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     AuditLog:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *         action:
- *           type: string
- *         user:
- *           type: object
- *           properties:
- *             _id:
- *               type: string
- *             email:
- *               type: string
- *         timestamp:
- *           type: string
- *           format: date-time
- *         details:
- *           type: object
- */
-
-/**
- * @swagger
- * /api/audits/recent:
- *   get:
- *     summary: Get recent audit logs (for dashboard)
- *     tags: [Audit Logs]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Recent audit logs retrieved
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/AuditLog'
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- */
-router.get("/recent", protect, admin, getRecentAuditLogs); // Route for fetching recent audit logs (for dashboard)
 
 /**
  * @swagger

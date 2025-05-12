@@ -100,27 +100,44 @@ export const getGlobalStats = async (req, res) => {
   }
 };
 
+const getAuditDescription = (log) => {
+  const user = log.performedBy;
+  const userName = user ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} ${user.firstName} ${user.lastName[0]}.` : "A user";
+
+  const ticketId = log.ticket?._id?.toString() || log.ticketId || "xxxxx";
+  const shortTicketId = ticketId.slice(-5);
+
+  switch (log.action) {
+    case 'created':
+      return `${userName} created ticket #${shortTicketId}`;
+    case 'updated':
+      return `${userName} updated ticket #${shortTicketId}`;
+    case 'resolved':
+      return `${userName} resolved ticket #${shortTicketId}`;
+    case 'deleted':
+      return `${userName} deleted ticket #${shortTicketId}`;
+    default:
+      return `${userName} performed an action on ticket #${shortTicketId}`;
+  }
+};
+
 export const getRecentActivity = async (req, res) => {
   try {
-    const audits = await Audit.find()
-      .sort({ createdAt: -1 })
-      .limit(4)
-      .populate('ticket', '_id') // Only need ticket ID
-      .populate('performedBy', 'name') // Assuming User has a 'name' field
-      .lean();
+    const auditLogs = await Audit.find()
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .populate({ path: 'ticket', select: 'title' })
+      .populate({ path: 'performedBy', select: 'firstName lastName email role' });
 
-    const activityList = audits.map((log) => {
-      const user = log.performedBy?.name || 'Unknown Agent';
-      const ticketId = log.ticket?._id?.toString().slice(-4) || '0000'; // Use last 4 digits
-      const action = log.action.replace(/_/g, ' '); // Friendly label
+    const logsWithDescription = auditLogs.map(log => ({
+      ...log.toObject(),
+      description: getAuditDescription(log),
+    }));
 
-      return `${user} ${action} ticket ID ${ticketId}`;
-    });
-
-    res.status(200).json({ activities: activityList });
-  } catch (err) {
-    console.error('Error getting recent activity:', err);
-    res.status(500).json({ message: 'Failed to fetch activity' });
+    res.status(200).json({ success: true, data: logsWithDescription });
+  } catch (error) {
+    console.error("Error fetching recent audit logs:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 

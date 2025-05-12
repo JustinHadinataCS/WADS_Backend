@@ -1,48 +1,5 @@
 import Audit from "../models/audit.model.js";
 
-const getAuditDescription = (log) => {
-  const user = log.performedBy;
-  const userName = user ? `${user.firstName} ${user.lastName}` : "Someone";
-
-  const ticketId = log.ticket?._id?.toString() || log.ticketId || "xxxxx";
-  const shortTicketId = ticketId.slice(-5);
-
-  switch (log.action) {
-    case 'created':
-      return `${userName} created ticket #${shortTicketId}`;
-    case 'updated':
-      return `${userName} updated ticket #${shortTicketId}`;
-    case 'resolved':
-      return `${userName} resolved ticket #${shortTicketId}`;
-    case 'deleted':
-      return `${userName} deleted ticket #${shortTicketId}`;
-    default:
-      return `${userName} performed an action on ticket #${shortTicketId}`;
-  }
-};
-
-// Get recent audit logs (e.g., for the dashboard)
-export const getRecentAuditLogs = async (req, res) => {
-  try {
-    const auditLogs = await Audit.find()
-      .sort({ timestamp: -1 })
-      .limit(10)
-      .populate({ path: 'ticket', select: 'title' })
-      .populate({ path: 'performedBy', select: 'firstName lastName email' });
-
-    const logsWithDescription = auditLogs.map(log => ({
-      ...log.toObject(),
-      description: getAuditDescription(log),
-    }));
-
-    res.status(200).json({ success: true, data: logsWithDescription });
-  } catch (error) {
-    console.error("Error fetching recent audit logs:", error.message);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-};
-
-
 // Get all audit logs with pagination
 export const getAllAuditLogs = async (req, res) => {
     try {
