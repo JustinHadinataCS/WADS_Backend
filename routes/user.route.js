@@ -13,9 +13,11 @@ import {
   updateSecuritySettings,
   googleLogin,
   googleCallback,
-  checkUserExists
+  checkUserExists,
+  uploadProfilePicture
 } from '../controllers/user.controller.js';
 import { protect, admin } from '../middleware/auth.js';
+import multer from 'multer';
 
 const router = express.Router();
 
@@ -410,5 +412,10 @@ router.get('/auth/google', googleLogin);
  *                   type: string
  */
 router.get('/auth/google/callback', googleCallback);
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+router.post('/upload-pfp', upload.single('pfp'), protect, uploadProfilePicture)
 
 export default router;

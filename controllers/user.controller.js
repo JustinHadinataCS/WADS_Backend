@@ -486,6 +486,44 @@ const googleCallback = (req, res, next) => {
   )(req, res, next);
 };
 
+export const uploadProfilePicture = async (req, res) => {
+   console.log("Incoming file:", req.file);
+  console.log("User ID:", req.user._id); // if you're using userId
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const base64Image = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+
+    const base64DataUri = `data:${mimeType};base64,${base64Image}`;
+
+    // Assume you get userId from req.body (or req.params)
+    const userId = req.user._id; // Adjust this as needed
+    console.log("Updating user with ID:", userId);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePicture: base64DataUri },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      message: "Profile picture uploaded successfully",
+      profilePicture: updatedUser.profilePicture,
+    });
+  } catch (error) {
+    console.error("Upload PFP Error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // Export all your functions here
 export {
   registerUser,
