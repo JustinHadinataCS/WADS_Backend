@@ -9,8 +9,15 @@ import Notification from "../models/notification.model.js";
 export const getTickets = async (req, res) => {
 
 	try {
-		const tickets = await Ticket.find({ 'user.userId': req.user._id });
-		res.status(200).json({ success: true, data: tickets });
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+		const tickets = await Ticket.find({ 'user.userId': req.user._id }).skip(skip).limit(limit).sort({createdAt: -1});
+
+    const totalTickets = await Ticket.countDocuments({ 'user.userId': req.user._id });
+		res.status(200).json({ success: true, data: tickets, currentPage: page, totalPages: Math.ceil(totalTickets / limit), totalTickets: totalTickets, });
 	} catch (error) {
 		console.log("Error in fetching tickets:", error.message);
 		res.status(500).json({ success: false, message: "Server Error" });
@@ -21,6 +28,7 @@ export const getTickets = async (req, res) => {
 export const getTicket = async (req, res) => {
 	const { id } = req.params;
 	try {
+
 		const ticket = await Ticket.findOne({ _id: id, 'user.userId': req.user._id });
 		if (!ticket) {
 			return res.status(404).json({ success: false, message: "Ticket not found" });
