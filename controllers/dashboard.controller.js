@@ -350,15 +350,15 @@ export const getRecentUserTickets = async (req, res) => {
     const tickets = await Ticket.find({ 'user.userId': userId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('title status priority createdAt')
+      .select('category status assignedTo createdAt updatedAt')
       .lean();
 
     const formatted = tickets.map(ticket => ({
-      ticketId: ticket._id.toString().slice(-5),
-      subject: ticket.title,
+      category: ticket.category,
       status: ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
-      priority: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1),
-      createdAt: ticket.createdAt.toISOString().split('T')[0],
+      assignedTo: ticket.assignedTo,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
       _id: ticket._id
     }));
 
