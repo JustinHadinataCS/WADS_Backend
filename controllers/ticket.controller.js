@@ -7,21 +7,51 @@ import Notification from "../models/notification.model.js";
 
 // Get all tickets for the current user
 export const getTickets = async (req, res) => {
-
-	try {
-
+  try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-		const tickets = await Ticket.find({ 'user.userId': req.user._id }).skip(skip).limit(limit).sort({createdAt: -1});
+    if (!req.user || !req.user._id || !req.user.role) {
+      console.error("❌ Missing user info in request:", req.user);
+      return res.status(401).json({ success: false, message: "Unauthorized or invalid token" });
+    }
 
-    const totalTickets = await Ticket.countDocuments({ 'user.userId': req.user._id });
-		res.status(200).json({ success: true, data: tickets, currentPage: page, totalPages: Math.ceil(totalTickets / limit), totalTickets: totalTickets, });
-	} catch (error) {
-		console.log("Error in fetching tickets:", error.message);
-		res.status(500).json({ success: false, message: "Server Error" });
-	}
+    console.log("👤 User ID:", req.user._id);
+    console.log("🔑 Role:", req.user.role);
+
+    let query = {};
+
+    if (req.user.role === "agent") {
+      query = { assignedTo: req.user._id };
+    } else if (req.user.role === "user") {
+      query = { "user.userId": req.user._id };
+    } else if (req.user.role === "admin") {
+      query = {}; // Admin sees all tickets
+    } else {
+      return res.status(403).json({ success: false, message: "Forbidden: Unknown role" });
+    }
+
+    const tickets = await Ticket.find(query)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const totalTickets = await Ticket.countDocuments(query);
+
+    console.log("✅ Tickets fetched:", tickets.length);
+
+    res.status(200).json({
+      success: true,
+      data: tickets,
+      currentPage: page,
+      totalPages: Math.ceil(totalTickets / limit),
+      totalTickets: totalTickets,
+    });
+  } catch (error) {
+    console.error("🚨 Error fetching tickets:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 };
 
 // Get a specific ticket by ID
