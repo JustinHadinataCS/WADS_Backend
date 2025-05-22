@@ -26,16 +26,19 @@ const TicketSchema = new Schema({
     },
     assignedTo: { 
         type: Schema.Types.ObjectId, 
-        ref: 'User',  // TODO: Replace with actual User model reference
+        ref: 'User',
         validate: {
             validator: async function(value) {
                 if (!value) return true;
                 const user = await User.findById(value); 
-                if (!user) return false;  // or throw a custom error message
+                if (!user) return false;
                 return user.role === 'agent';
             },
             message: 'Assigned user must exist and have the "agent" role'
-        }        
+        },
+        firstName: String,
+        lastName: String,
+        email: String    
     },
     department: {
         type: String,
