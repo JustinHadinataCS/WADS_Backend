@@ -37,6 +37,8 @@ A comprehensive healthcare management system backend built with Node.js, Express
   - JWT (JSON Web Tokens)
   - Passport.js
   - Google OAuth2.0
+  - Two-Factor Authentication (2FA)
+  - Refresh Token System
 - **AI Integration**:
   - Google Gemini AI
 - **Real-time**: Socket.IO
@@ -105,17 +107,34 @@ The documentation includes:
 
 ## 🔐 Authentication
 
-The API supports two authentication methods:
+The API supports multiple authentication methods:
 
 1. **JWT Authentication**
    - Used for regular email/password login
    - Token must be included in Authorization header
    - Format: `Bearer <token>`
+   - Includes refresh token system for extended sessions
+   - Refresh tokens can be used to obtain new access tokens
 
-2. **Google OAuth**
+2. **Two-Factor Authentication (2FA)**
+   - Optional 2FA using authenticator apps (Google Authenticator, Authy)
+   - QR code generation for easy setup
+   - Secure token validation
+   - Backup codes for account recovery
+   - Can be enabled/disabled by users
+
+3. **Google OAuth**
    - Enables "Sign in with Google"
    - Requires valid Google OAuth credentials
    - Automatically creates user account on first login
+
+### Authentication Endpoints
+- `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/refresh` - Get new access token using refresh token
+- `POST /api/2fa/setup` - Set up 2FA
+- `POST /api/2fa/verify` - Verify 2FA code
+- `POST /api/2fa/disable` - Disable 2FA
+- `POST /api/2fa/generate-backup-codes` - Generate backup codes
 
 ## 🚦 API Endpoints
 
