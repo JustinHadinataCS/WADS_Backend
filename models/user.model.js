@@ -30,6 +30,11 @@ const UserSchema = new Schema({
     required: [true, "Please enter phone number"],
     trim: true,
   },
+  lineUserId: {
+    type: String,
+    required: false,
+    trim: true,
+  },
   password: {
     type: String,
     required: [true, "Password is required"],
@@ -70,6 +75,7 @@ const UserSchema = new Schema({
       enum: ["authenticator", "sms", null],
       default: null,
     },
+    twoFactorSecret: { type: String, default: null },
     lastPasswordChange: {
       type: Date,
       default: Date.now,
@@ -133,6 +139,10 @@ const UserSchema = new Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
+  },
+  refreshToken: {
+    type: String,
+    default: null
   },
 });
 

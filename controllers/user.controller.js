@@ -5,6 +5,7 @@ import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import passport from "passport";
+import { generateAccessToken, generateRefreshToken } from './auth.controller.js';
 
 // @desc    Check if user exists
 // @route   POST /api/users/check
@@ -152,6 +153,24 @@ const loginUser = asyncHandler(async (req, res) => {
   user.lastLogin = Date.now();
   await user.save();
 
+  // If 2FA is enabled, return only the user ID
+  if (user.securitySettings.twoFactorEnabled) {
+    res.json({
+      _id: user._id,
+      requires2FA: true
+    });
+    return;
+  }
+
+  // Generate tokens
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+
+  // Save refresh token to user
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  // If 2FA is not enabled, return full user data with tokens
   res.json({
     _id: user._id,
     firstName: user.firstName,
@@ -159,7 +178,8 @@ const loginUser = asyncHandler(async (req, res) => {
     email: user.email,
     role: user.role,
     profilePicture: user.profilePicture,
-    token: generateToken(user._id),
+    accessToken,
+    refreshToken
   });
 });
 

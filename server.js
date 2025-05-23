@@ -16,11 +16,13 @@ import feedbackRoutes from "./routes/feedback.route.js";
 import chatRoutes from "./routes/chat.routes.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import analyticRoutes from "./routes/analytic.route.js";
+import twoFactorRoutes from "./routes/twoFactor.route.js";
 import errorHandler from "./middleware/errorHandler.js";
 import session from "express-session";
 import passport from "./middleware/auth.js";
 import responseTimeLogger from "./middleware/responseTimeLogger.js";
 import uptimeLogger from "./middleware/uptimeLogger.js";
+import authRoutes from './routes/auth.route.js';
 
 import { specs } from "./config/swagger.js";
 import { Server } from "socket.io";
@@ -106,7 +108,9 @@ app.use("/api/exports", exportRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/analytics",analyticRoutes)
+app.use("/api/analytics", analyticRoutes);
+app.use("/api/2fa", twoFactorRoutes);
+app.use("/api/auth", authRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
