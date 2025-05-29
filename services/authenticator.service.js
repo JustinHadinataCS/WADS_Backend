@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 const generateSecret = () => {
   return speakeasy.generateSecret({
     length: 20,
-    name: 'Your App Name' // Replace with your app name
+    name: 'Semesta Medika Ticketing System' 
   });
 };
 

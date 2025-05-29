@@ -33,7 +33,7 @@ const options = {
   },
   apis: [
     './routes/*.js',
-    './routes/chat.routes.js',
+    './controllers/*.js',
     './models/*.js'
   ], // Path to the API docs
 };
