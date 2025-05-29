@@ -23,7 +23,7 @@ export const getTickets = async (req, res) => {
     let query = {};
 
     if (req.user.role === "agent") {
-      query = { assignedTo: req.user._id };
+      query = { 'assignedTo.userId': req.user._id };
     } else if (req.user.role === "user") {
       query = { "user.userId": req.user._id };
     } else if (req.user.role === "admin") {

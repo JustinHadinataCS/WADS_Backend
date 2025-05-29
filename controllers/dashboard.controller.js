@@ -146,16 +146,17 @@ export const getRecentTickets = async (req, res) => {
     const tickets = await Ticket.find({})
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('title status priority createdAt') // minimal data needed
+      .select('category status user assignedTo createdAt updatedAt') // minimal data needed
       .lean();
 
     const formatted = tickets.map(ticket => ({
-      ticketId: ticket._id.toString().slice(-5), // Show last 5 digits, e.g. #12345
-      subject: ticket.title,
-      status: ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1), // Capitalize
-      priority: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1),
-      createdAt: ticket.createdAt.toISOString().split('T')[0], // YYYY-MM-DD
-      _id: ticket._id // still send real ID for "View" link usage
+      category: ticket.category,
+      status: ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1),
+      submittedBy: ticket.user,
+      assignedTo: ticket.assignedTo,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+      _id: ticket._id
     }));
 
     res.status(200).json({ recentTickets: formatted });
