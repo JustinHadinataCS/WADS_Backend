@@ -1,5 +1,5 @@
 import express from "express";
-import { createTicket, deleteTicket, getTicket, getTickets, updateTicket, searchAndFilterTickets} from "../controllers/ticket.controller.js";
+import { createTicket, deleteTicket, getTicket, getTickets, updateTicket} from "../controllers/ticket.controller.js";
 import { agent, protect, user } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -45,35 +45,6 @@ router.use(protect)
  *           type: string
  *           format: date-time
  */
-
-/**
- * @swagger
- * /api/tickets/search:
- *   get:
- *     summary: Search and filter tickets
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: List of matching tickets
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Ticket'
- */
-router.get("/search", searchAndFilterTickets);
 
 /**
  * @swagger
