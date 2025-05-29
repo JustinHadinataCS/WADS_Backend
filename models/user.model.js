@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import Room from "./room.model.js";
 
 const { Schema } = mongoose;
 
@@ -144,10 +145,31 @@ const UserSchema = new Schema({
     type: String,
     default: null
   },
+  rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }]
 });
 
 // Hash password before saving
 UserSchema.pre("save", async function (next) {
+  if (this.role === "agent") {
+    try {
+      // Check if the "agents-room" already exists
+      let agentsRoom = await Room.findOne({ name: "agents-room" });
+
+      // If "agents-room" doesn't exist, create it
+      if (!agentsRoom) {
+        agentsRoom = await Room.create({ name: "agents-room", users: [] });
+      }
+
+      // Add "agents-room" to the agent's rooms array (if not already added)
+      if (!this.rooms.includes(agentsRoom._id)) {
+        this.rooms.push(agentsRoom._id);
+      }
+    } catch (error) {
+      console.error("Error assigning agents-room:", error);
+      return next(error); // Pass error to next
+    }
+  }
+
   if (!this.isModified("password")) {
     return next();
   }

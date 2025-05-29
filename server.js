@@ -17,12 +17,14 @@ import chatRoutes from "./routes/chat.routes.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import analyticRoutes from "./routes/analytic.route.js";
 import twoFactorRoutes from "./routes/twoFactor.route.js";
+import messageRoutes from "./routes/message.route.js"
 import errorHandler from "./middleware/errorHandler.js";
 import session from "express-session";
 import passport from "./middleware/auth.js";
 import responseTimeLogger from "./middleware/responseTimeLogger.js";
 import uptimeLogger from "./middleware/uptimeLogger.js";
 import authRoutes from './routes/auth.route.js';
+import socketHandler from "./socket/index.js";
 
 import { specs } from "./config/swagger.js";
 import { Server } from "socket.io";
@@ -39,6 +41,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "http://localhost:5173", methods: ["GET", "POST"] },
 });
+
+socketHandler(io)
 
 // Middleware
 app.use(helmet());
@@ -111,6 +115,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticRoutes);
 app.use("/api/2fa", twoFactorRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes)
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -125,6 +130,8 @@ app.use((req, res) => {
 // Global error handler
 app.use(errorHandler);
 
+app.set('io', io)
+
 // MongoDB connection and server startup
 if (process.env.NODE_ENV !== "test") {
   connectDB()
@@ -138,13 +145,6 @@ if (process.env.NODE_ENV !== "test") {
       process.exit(1);
     });
 }
-
-io.on("connection", (socket) => {
-  console.log(`User Connected: ${socket.id}`);
-  socket.on("forum:send-message", (data) =>
-    socket.broadcast.emit("forum:message-received", data)
-  );
-});
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
