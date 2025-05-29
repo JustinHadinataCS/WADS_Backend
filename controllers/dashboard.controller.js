@@ -227,7 +227,7 @@ export const getAgentDashboardStats = async (req, res) => {
      const agentId = req.user._id;
 
     // Total tickets assigned to the agent
-    const totalAssigned = await Ticket.countDocuments({ assignedTo: agentId });
+    const totalAssigned = await Ticket.countDocuments({ 'assignedTo.userId': agentId });
 
     // Tickets resolved this week
     const startOfWeek = new Date();
