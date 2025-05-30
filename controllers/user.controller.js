@@ -116,6 +116,12 @@ const registerUser = asyncHandler(async (req, res) => {
         if (!agentsRoom.users.includes(user._id)) {
           agentsRoom.users.push(user._id);
           await agentsRoom.save();
+          
+          // Add room to user's rooms array if not already there
+          if (!user.rooms.includes(agentsRoom._id)) {
+            user.rooms.push(agentsRoom._id);
+            await user.save();
+          }
         }
       }
     }
@@ -405,7 +411,9 @@ const generateToken = (id) => {
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
+  const user = await User.findById(req.user._id)
+    .select("-password")
+    .populate('rooms');
 
   if (user) {
     res.json(user);
