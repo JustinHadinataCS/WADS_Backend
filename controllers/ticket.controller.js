@@ -315,3 +315,121 @@ export const deleteTicket = async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+export const uploadTicketAttachment = async (req, res) => {
+  console.log("Incoming ticket attachment:", req.file);
+  console.log("Ticket ID:", req.params.id);
+  console.log("User ID:", req.user._id);
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: "Invalid Ticket ID" });
+    }
+
+    // Convert file to base64
+    const base64File = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const base64DataUri = `data:${mimeType};base64,${base64File}`;
+
+    // Create attachment object
+    const newAttachment = {
+      fileName: req.file.originalname,
+      fileUrl: base64DataUri,
+      uploadedBy: req.user._id
+    };
+
+    // Update ticket with new attachment
+    const updatedTicket = await Ticket.findByIdAndUpdate(
+      id,
+      { $push: { attachments: newAttachment } },
+      { new: true }
+    );
+
+    if (!updatedTicket) {
+      return res.status(404).json({ success: false, message: "Ticket not found" });
+    }
+
+    // Add to activity log
+    updatedTicket.activityLog.push({
+      action: 'attachment_added',
+      performedBy: req.user._id,
+      newValue: req.file.originalname
+    });
+    await updatedTicket.save();
+
+    // Audit Log
+    const auditLog = new Audit({
+      ticket: updatedTicket._id,
+      ticketId: updatedTicket._id.toString(),
+      action: 'attachment_added',
+      performedBy: req.user._id,
+      timestamp: new Date(),
+      newValue: req.file.originalname
+    });
+    await auditLog.save();
+
+    // Notifications
+    const notifications = [];
+    
+    // User notification (if not the user who uploaded)
+    if (!updatedTicket.user.userId.equals(req.user._id)) {
+      notifications.push(
+        new Notification({
+          userId: updatedTicket.user.userId,
+          title: 'Attachment Added',
+          content: `An attachment was added to your ticket "${updatedTicket.title}"`,
+          type: 'ticket',
+          priority: 'low',
+          link: `/tickets/${updatedTicket._id}`
+        })
+      );
+    }
+
+    // Agent notification (if not the agent who uploaded)
+    if (!updatedTicket.assignedTo.userId.equals(req.user._id)) {
+      notifications.push(
+        new Notification({
+          userId: updatedTicket.assignedTo.userId,
+          title: 'Attachment Added',
+          content: `An attachment was added to ticket "${updatedTicket.title}"`,
+          type: 'ticket',
+          priority: 'low',
+          link: `/tickets/${updatedTicket._id}`
+        })
+      );
+    }
+
+    // Admin notification
+    notifications.push(
+      new Notification({
+        title: 'Attachment Added',
+        content: `An attachment was added to ticket "${updatedTicket.title}"`,
+        type: 'ticket',
+        priority: 'low',
+        link: `/tickets/${updatedTicket._id}`,
+        isAdminNotification: true
+      })
+    );
+
+    await Promise.all(notifications.map(n => n.save()));
+
+    res.status(200).json({
+      success: true,
+      message: "Attachment uploaded successfully",
+      data: {
+        fileName: newAttachment.fileName,
+        fileUrl: newAttachment.fileUrl,
+        uploadedAt: newAttachment.uploadedAt
+      }
+    });
+  } catch (error) {
+    console.error("Upload Ticket Attachment Error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
