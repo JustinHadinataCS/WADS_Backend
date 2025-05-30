@@ -43,6 +43,7 @@ export const getTickets = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      type: "tickets",
       data: tickets,
       currentPage: page,
       totalPages: Math.ceil(totalTickets / limit),
