@@ -170,6 +170,15 @@ const loginUser = asyncHandler(async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
+  // refresh token cookie
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true, 
+    sameSite: "Lax", 
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
+
   // If 2FA is not enabled, return full user data with tokens
   res.json({
     _id: user._id,
@@ -178,12 +187,9 @@ const loginUser = asyncHandler(async (req, res) => {
     email: user.email,
     role: user.role,
     profilePicture: user.profilePicture,
-    accessToken,
-    refreshToken
+    accessToken
   });
 });
-
-// The rest of your controller remains the same...
 
 // @desc    Update user profile
 // @route   PUT /api/users/profile

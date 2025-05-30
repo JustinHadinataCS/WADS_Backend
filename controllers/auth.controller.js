@@ -20,7 +20,7 @@ const generateRefreshToken = (id) => {
 // @route   POST /api/auth/refresh
 // @access  Public
 const refreshToken = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
     res.status(401);
@@ -40,10 +40,16 @@ const refreshToken = asyncHandler(async (req, res) => {
     }
 
     // Generate new access token
-    const accessToken = generateAccessToken(user._id);
+    user.accessToken = generateAccessToken(user._id);
 
     res.json({
-      accessToken
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      accessToken: user.accessToken
     });
   } catch (error) {
     res.status(401);
@@ -56,11 +62,17 @@ const refreshToken = asyncHandler(async (req, res) => {
 // @access  Private
 const logout = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
-  
   if (user) {
-    user.refreshToken = null;
+    user.accessToken = null;
     await user.save();
   }
+
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'Lax',
+    path: '/'
+  });
 
   res.json({ message: 'Logged out successfully' });
 });
