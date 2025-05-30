@@ -82,7 +82,7 @@ const TicketSchema = new Schema({
     },
     priority: { 
         type: String, 
-        enum: ['low', 'medium', 'high', 'critical'], 
+        enum: ['low', 'medium', 'high'], 
         default: 'medium',
         required: true
     },
@@ -93,19 +93,37 @@ const TicketSchema = new Schema({
         newValue: Schema.Types.Mixed,
         timestamp: { type: Date, default: Date.now }
     }],
-    communications: [{
-        message: { type: String, required: true },
-        sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-        senderType: { type: String, enum: ['Support Agent', 'User'], required: true },
-        attachments: [{ fileName: String, fileUrl: String, uploadedAt: { type: Date, default: Date.now } }],
-        timestamp: { type: Date, default: Date.now }
-    }],
     attachments: [{
         fileName: { type: String, required: true },
         fileUrl: String,
         uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
         uploadedAt: { type: Date, default: Date.now }
-    }]
+    }],
+     messages: [{
+    content: { type: String, required: true },
+    sender: { 
+      userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+      firstName: String,
+      lastName: String,
+      email: String,
+      role: String
+    },
+    attachments: [{
+      fileName: String,
+      fileUrl: String,
+      uploadedAt: { type: Date, default: Date.now }
+    }],
+    createdAt: { type: Date, default: Date.now }
+  }],
+  
+  // Add participants (user + assigned agent)
+  participants: [{
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    firstName: String,
+    lastName: String,
+    email: String,
+    role: String
+  }]
 }, {
     timestamps: true
 });

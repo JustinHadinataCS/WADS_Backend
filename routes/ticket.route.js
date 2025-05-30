@@ -1,6 +1,6 @@
 import express from "express";
-import { createTicket, deleteTicket, getTicket, getTickets, updateTicket, uploadTicketAttachment} from "../controllers/ticket.controller.js";
-import { agent, protect, user } from "../middleware/auth.js";
+import { createTicket, deleteTicket, getTicket, getTicketMessages, getTickets, sendTicketMessage, updateTicket, uploadTicketAttachment} from "../controllers/ticket.controller.js";
+import { protect, user } from "../middleware/auth.js";
 import multer from "multer";
 
 const router = express.Router();
@@ -91,6 +91,8 @@ router.get("/", getTickets);
  */
 router.get("/:id", getTicket);
 
+router.get("/:id/messages", getTicketMessages);
+
 /**
  * @swagger
  * /api/tickets:
@@ -136,6 +138,8 @@ const upload = multer({
 });
 
 router.post('/:id/attachments', upload.single('file'), uploadTicketAttachment);
+
+router.post("/:id/messages", sendTicketMessage);
 
 /**
  * @swagger
