@@ -433,3 +433,136 @@ export const uploadTicketAttachment = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+export const getTicketMessages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const ticket = await Ticket.findOne({
+      _id: id,
+      $or: [
+        { 'user.userId': userId },
+        { 'assignedTo.userId': userId },
+        { 'participants.userId': userId }
+      ]
+    });
+
+    if (!ticket) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Not authorized or ticket not found" 
+      });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      data: ticket.messages 
+    });
+  } catch (error) {
+    console.error("Error fetching ticket messages:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error" 
+    });
+  }
+};
+
+export const sendTicketMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content, attachments } = req.body;
+    const userId = req.user._id;
+
+    if (!content && (!attachments || attachments.length === 0)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Message content or attachment required" 
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    const ticket = await Ticket.findOne({
+      _id: id,
+      $or: [
+        { 'user.userId': userId },
+        { 'assignedTo.userId': userId },
+        { 'participants.userId': userId }
+      ]
+    });
+
+    if (!ticket) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Not authorized or ticket not found" 
+      });
+    }
+
+    // Ensure user is in participants
+    const isParticipant = ticket.participants.some(p => p.userId.equals(userId));
+    if (!isParticipant) {
+      ticket.participants.push({
+        userId: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role
+      });
+    }
+
+    const newMessage = {
+      content,
+      sender: {
+        userId: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role
+      },
+      attachments: attachments || []
+    };
+
+    ticket.messages.push(newMessage);
+    await ticket.save();
+
+    // Emit real-time message
+    req.app.get('io').to(`ticket-${id}`).emit('ticket-message', newMessage);
+
+    // Create notifications for other participants
+    const otherParticipants = ticket.participants.filter(
+      p => !p.userId.equals(userId)
+    );
+
+    await Promise.all(
+      otherParticipants.map(async participant => {
+        const notification = new Notification({
+          userId: participant.userId,
+          title: `New message in ticket #${ticket._id}`,
+          content: `New message from ${user.firstName}: ${content.substring(0, 50)}...`,
+          type: 'ticket-message',
+          priority: 'medium',
+          link: `/tickets/${ticket._id}`
+        });
+        await notification.save();
+      })
+    );
+
+    res.status(201).json({ 
+      success: true, 
+      data: newMessage 
+    });
+  } catch (error) {
+    console.error("Error sending ticket message:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error" 
+    });
+  }
+};
