@@ -168,52 +168,51 @@ export const getRecentTickets = async (req, res) => {
 
 export const getAgentPerformance = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
-
-    const matchStage = {
-      status: 'resolved',
-    };
-
-    if (startDate && endDate) {
-      matchStage.updatedAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
 
     const aggregation = await Ticket.aggregate([
-      { $match: matchStage },
       {
         $group: {
-          _id: '$assignedTo',
-          resolvedCount: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'agent'
-        }
-      },
-      { $unwind: '$agent' },
-      {
-        $project: {
-          agentName: {
-            $concat: ['$agent.firstName', ' ', '$agent.lastName']
+          _id: {
+            assignedTo: '$assignedTo',
+            status: '$status'
           },
-          resolvedCount: 1
+          count: { $sum: 1 }
         }
       },
-      { $sort: { resolvedCount: -1 } }
-    ]);
+      {
+        $group: {
+          _id: '$_id.assignedTo',
+          statuses: {
+            $push: {
+              status: '$_id.status',
+              count: '$count'
+            }
+          }
+        }
+      }
+    ]);    
 
-    const totalResolved = aggregation.reduce((sum, agent) => sum + agent.resolvedCount, 0);
+    const formatted = aggregation.map(agent => {
+      const statusMap = {
+        pending: 0,
+        in_progress: 0,
+        resolved: 0
+      };
+    
+      for (const s of agent.statuses) {
+        statusMap[s.status] = s.count;
+      }
+    
+      return {
+        assignedTo: agent._id,
+        ...statusMap
+      };
+    });
+
+    //const totalResolved = aggregation.reduce((sum, agent) => sum + agent.resolvedCount, 0);
 
     res.status(200).json({
-      totalResolved,
-      performance: aggregation
+      performance: formatted
     });
   } catch (err) {
     console.error('Agent performance fetch failed:', err);
