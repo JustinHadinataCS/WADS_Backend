@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import passport from "passport";
 import { generateAccessToken, generateRefreshToken } from './auth.controller.js';
+import Room from "../models/room.model.js";
 
 // @desc    Check if user exists
 // @route   POST /api/users/check
@@ -106,6 +107,24 @@ const registerUser = asyncHandler(async (req, res) => {
             : "weak",
       },
     });
+
+    // If user is an agent, add them to the agents-room
+    if (user.role === "agent") {
+      const agentsRoom = await Room.findOne({ name: "agents-room" });
+      if (agentsRoom) {
+        // Add user to room's users array if not already there
+        if (!agentsRoom.users.includes(user._id)) {
+          agentsRoom.users.push(user._id);
+          await agentsRoom.save();
+          
+          // Add room to user's rooms array if not already there
+          if (!user.rooms.includes(agentsRoom._id)) {
+            user.rooms.push(agentsRoom._id);
+            await user.save();
+          }
+        }
+      }
+    }
 
     res.status(201).json({
       _id: user._id,
@@ -398,7 +417,9 @@ const generateToken = (id) => {
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
+  const user = await User.findById(req.user._id)
+    .select("-password")
+    .populate('rooms');
 
   if (user) {
     res.json(user);
