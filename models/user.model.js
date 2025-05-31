@@ -174,6 +174,32 @@ UserSchema.pre("save", async function (next) {
         agentsRoom.users.push(this._id);
         await agentsRoom.save();
       }
+
+      // Create individual rooms with other agents
+      const otherAgents = await User.find({ 
+        role: "agent", 
+        _id: { $ne: this._id } 
+      });
+
+      for (const otherAgent of otherAgents) {
+        // Check if a room already exists between these two agents
+        const existingRoom = await Room.findOne({
+          users: { $all: [this._id, otherAgent._id], $size: 2 },
+        });
+
+        if (!existingRoom) {
+          // Create a new room between the agents
+          const newRoom = await Room.create({
+            name: `Chat between ${this.firstName} and ${otherAgent.firstName}`,
+            users: [this._id, otherAgent._id],
+          });
+
+          // Add room to both agents' rooms array
+          this.rooms.push(newRoom._id);
+          otherAgent.rooms.push(newRoom._id);
+          await otherAgent.save();
+        }
+      }
     } catch (error) {
       console.error("Error assigning agents-room:", error);
       return next(error);
@@ -234,7 +260,7 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
     throw error;
   }
 };
-
+    
 // Create the model
 const User = mongoose.model("User", UserSchema);
 

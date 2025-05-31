@@ -30,28 +30,6 @@ const checkUserExists = asyncHandler(async (req, res) => {
   });
 });
 
-// Create a default room for new users
-const createDefaultRoom = async (userId, firstName) => {
-  try {
-    const newRoom = new Room({
-      users: [userId],
-      name: `${firstName}'s Room`,
-    });
-
-    await newRoom.save();
-
-    // Add room to user's rooms array
-    await User.findByIdAndUpdate(userId, {
-      $push: { rooms: newRoom._id },
-    });
-
-    return newRoom;
-  } catch (error) {
-    console.error("Error creating default room:", error);
-    throw error;
-  }
-};
-
 // @desc    Register a new user
 // @route   POST /api/users
 // @access  Public
@@ -132,9 +110,6 @@ const registerUser = asyncHandler(async (req, res) => {
             : "weak",
       },
     });
-
-    // Create default room for the user
-    await createDefaultRoom(user._id, user.firstName);
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id);
