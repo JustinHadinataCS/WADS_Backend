@@ -60,14 +60,8 @@ const UserSchema = new Schema({
   notificationSettings: {
     email: {
       ticketStatusUpdates: { type: Boolean, default: true },
-      newAgentResponses: { type: Boolean, default: true },
-      ticketResolution: { type: Boolean, default: true },
-      marketingUpdates: { type: Boolean, default: false },
-    },
-    inApp: {
-      desktopNotifications: { type: Boolean, default: true },
-      soundNotifications: { type: Boolean, default: true },
-    },
+       newResponses: { type: Boolean, default: true },
+    }
   },
   securitySettings: {
     twoFactorEnabled: { type: Boolean, default: false },
