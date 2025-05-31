@@ -170,6 +170,98 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Admin creates a new user
+// @route   POST /api/admin/users
+// @access  Private/Admin
+const adminCreateUser = asyncHandler(async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    phoneNumber,
+    password,
+    department,
+    timezone,
+    role,
+  } = req.body;
+
+  // Validate required fields
+  if (!firstName || !lastName || !email || !phoneNumber || !password) {
+    res.status(400);
+    throw new Error("Please fill in all required fields");
+  }
+
+  const assignedRole = role || "user";
+
+  // Validate password length
+  if (password.length < 6) {
+    res.status(400);
+    throw new Error("Password must be at least 6 characters long");
+  }
+
+  // Check if user already exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(409);
+    throw new Error("Email is already registered.");
+  }
+
+  try {
+    // Create new user
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      password,
+      department,
+      timezone,
+      role: assignedRole,
+      notificationSettings: {
+        email: {
+          ticketStatusUpdates: true,
+          newAgentResponses: true,
+          ticketResolution: true,
+          marketingUpdates: false,
+        },
+        inApp: {
+          desktopNotifications: true,
+          soundNotifications: true,
+        },
+      },
+      securitySettings: {
+        twoFactorEnabled: false,
+        twoFactorMethod: null,
+        lastPasswordChange: Date.now(),
+        passwordStrength:
+          password.length >= 8
+            ? "strong"
+            : password.length >= 6
+            ? "medium"
+            : "weak",
+      },
+    });
+
+    // Optionally create a default room
+    await createDefaultRoom(user._id, user.firstName);
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Admin user creation failed:", error);
+    res.status(400);
+    throw new Error("Error creating user: " + error.message);
+  }
+});
+
 // @desc    Auth user & get token
 // @route   POST /api/users/login
 // @access  Public
@@ -665,6 +757,7 @@ export const uploadProfilePicture = async (req, res) => {
 // Export all your functions here
 export {
   registerUser,
+  adminCreateUser,
   loginUser,
   getUserProfile,
   updateUserProfile,

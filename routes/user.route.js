@@ -2,6 +2,7 @@
 import express from 'express';
 import {
   registerUser,
+  adminCreateUser,
   loginUser,
   getUserProfile,
   updateUserProfile,
@@ -134,6 +135,94 @@ router.post('/check', checkUserExists);
  *                   type: string
  */
 router.post('/', registerUser);
+
+/**
+ * @swagger
+ * /api/users/admin-create:
+ *   post:
+ *     summary: Admin creates a new user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phoneNumber
+ *               - password
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: john.doe@example.com
+ *               phoneNumber:
+ *                 type: string
+ *                 example: "+1234567890"
+ *               password:
+ *                 type: string
+ *                 example: "SecurePass123"
+ *               department:
+ *                 type: string
+ *                 example: "Support"
+ *               timezone:
+ *                 type: string
+ *                 example: "America/New_York"
+ *               role:
+ *                 type: string
+ *                 enum: [user, agent, admin]
+ *                 example: "agent"
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User created successfully
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 60d0fe4f5311236168a109ca
+ *                     firstName:
+ *                       type: string
+ *                       example: John
+ *                     lastName:
+ *                       type: string
+ *                       example: Doe
+ *                     email:
+ *                       type: string
+ *                       example: john.doe@example.com
+ *                     role:
+ *                       type: string
+ *                       example: agent
+ *       400:
+ *         description: Bad request (missing fields or invalid data)
+ *       409:
+ *         description: Conflict – Email is already registered
+ *       401:
+ *         description: Unauthorized – Not authenticated
+ *       403:
+ *         description: Forbidden – Admin access required
+ */
+
+
+router.post('/admin-create', protect, admin, adminCreateUser);
 
 /**
  * @swagger
@@ -296,6 +385,79 @@ router.route('/:id')
   .put(protect, admin, updateUser)
   .delete(protect, admin, deleteUser);
 
+/**
+ * @swagger
+ * /api/users/activity/{id}:
+ *   get:
+ *     summary: Get audit logs by user ID (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user whose activity logs are to be fetched
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: A list of audit logs for the specified user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   action:
+ *                     type: string
+ *                     example: updated
+ *                   fieldChanged:
+ *                     type: string
+ *                     nullable: true
+ *                   previousValue:
+ *                     type: string
+ *                     nullable: true
+ *                   newValue:
+ *                     type: string
+ *                     nullable: true
+ *                   ticketId:
+ *                     type: string
+ *                   ticket:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                   performedBy:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       role:
+ *                         type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       403:
+ *         description: Forbidden - admin access required
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
 router.route('/activity/:id')
   .get(protect, admin, getAuditLogsByUser)
 
