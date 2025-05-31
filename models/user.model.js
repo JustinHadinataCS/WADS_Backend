@@ -60,14 +60,8 @@ const UserSchema = new Schema({
   notificationSettings: {
     email: {
       ticketStatusUpdates: { type: Boolean, default: true },
-      newAgentResponses: { type: Boolean, default: true },
-      ticketResolution: { type: Boolean, default: true },
-      marketingUpdates: { type: Boolean, default: false },
-    },
-    inApp: {
-      desktopNotifications: { type: Boolean, default: true },
-      soundNotifications: { type: Boolean, default: true },
-    },
+       newResponses: { type: Boolean, default: true },
+    }
   },
   securitySettings: {
     twoFactorEnabled: { type: Boolean, default: false },
@@ -143,9 +137,9 @@ const UserSchema = new Schema({
   },
   refreshToken: {
     type: String,
-    default: null
+    default: null,
   },
-  rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }]
+  rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: "Room" }],
 });
 
 // Hash password before saving
@@ -157,16 +151,26 @@ UserSchema.pre("save", async function (next) {
 
       // If "agents-room" doesn't exist, create it
       if (!agentsRoom) {
-        agentsRoom = await Room.create({ name: "agents-room", users: [] });
+        agentsRoom = await Room.create({
+          name: "agents-room",
+          users: [],
+          isPublic: true,
+        });
       }
 
       // Add "agents-room" to the agent's rooms array (if not already added)
       if (!this.rooms.includes(agentsRoom._id)) {
         this.rooms.push(agentsRoom._id);
       }
+
+      // Add agent to the room's users array (if not already added)
+      if (!agentsRoom.users.includes(this._id)) {
+        agentsRoom.users.push(this._id);
+        await agentsRoom.save();
+      }
     } catch (error) {
       console.error("Error assigning agents-room:", error);
-      return next(error); // Pass error to next
+      return next(error);
     }
   }
 

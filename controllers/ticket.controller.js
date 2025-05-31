@@ -131,41 +131,51 @@ export const createTicket = async (req, res) => {
     });
     await auditLog.save();
 
-   	// 🔔 User Notification
-    const userNotification = new Notification({
-      userId: req.user._id,
-      title: 'Ticket Submitted',
-      content: `Your ticket "${ticketData.title}" has been successfully created and assigned to an agent.`,
-      type: 'ticket',
-      priority: 'low',
-      link: `/tickets/${newTicket._id}`
-    });
+    // 🔔 Notifications
+const notificationsToSave = [];
 
-    // 🔔 Agent Notification
-    const agentNotification = new Notification({
-      userId: assignedAgent._id,
-      title: 'New Ticket Assigned',
-      content: `A new ticket "${ticketData.title}" has been assigned to you.`,
-      type: 'ticket',
-      priority: 'medium',
-      link: `/tickets/${newTicket._id}`
-    });
+// Fetch user and agent for notification preferences
+const ticketOwner = await User.findById(req.user._id);
+const agentUser = await User.findById(assignedAgent._id);
 
-	// 🔔 Admin Notification
-	const adminNotification = new Notification({
-	title: 'New Ticket Created',
-	content: `A new ticket "${ticketData.title}" has been created and assigned to Agent ${assignedAgent.firstName+" "+assignedAgent.lastName}.`,
-	type: 'ticket',
-	priority: 'medium',
-	link: `/tickets/${newTicket._id}`,
-	isAdminNotification: true
-	});
+// 🔔 User Notification
+if (ticketOwner?.notificationSettings?.email?.ticketStatusUpdates) {
+  const userNotification = new Notification({
+    userId: req.user._id,
+    title: 'Ticket Submitted',
+    content: `Your ticket "${ticketData.title}" has been successfully created and assigned to an agent.`,
+    type: 'ticket',
+    priority: 'low',
+    link: `/tickets/${newTicket._id}`
+  });
+  notificationsToSave.push(userNotification.save());
+}
 
-  	await Promise.all([
-        userNotification.save(),
-        agentNotification.save(),
-        adminNotification.save()
-        ]);
+// 🔔 Agent Notification
+if (agentUser?.notificationSettings?.email?.ticketStatusUpdates) {
+  const agentNotification = new Notification({
+    userId: assignedAgent._id,
+    title: 'New Ticket Assigned',
+    content: `A new ticket "${ticketData.title}" has been assigned to you.`,
+    type: 'ticket',
+    priority: 'medium',
+    link: `/tickets/${newTicket._id}`
+  });
+  notificationsToSave.push(agentNotification.save());
+}
+
+// 🔔 Admin Notification (always sent)
+const adminNotification = new Notification({
+  title: 'New Ticket Created',
+  content: `A new ticket "${ticketData.title}" has been created and assigned to Agent ${assignedAgent.firstName} ${assignedAgent.lastName}.`,
+  type: 'ticket',
+  priority: 'medium',
+  link: `/tickets/${newTicket._id}`,
+  isAdminNotification: true
+});
+notificationsToSave.push(adminNotification.save());
+
+await Promise.all(notificationsToSave);
 
     res.status(201).json({ success: true, data: newTicket });
 
@@ -203,42 +213,54 @@ export const updateTicket = async (req, res) => {
     });
     await auditLog.save();
 
-    // 🔔 User Notification
-    const userNotification = new Notification({
-      userId: req.user._id,
-      title: 'Ticket Updated',
-      content: `Your ticket "${updatedTicket.title}" has been updated.`,
-      type: 'ticket',
-      priority: 'low',
-      link: `/tickets/${updatedTicket._id}`
-    });
+   // Fetch the user who owns the ticket to check their notification preferences
+const ticketOwner = await User.findById(req.user._id);
 
-	// 🔔 AgentNotification
+const notificationsToSave = [];
+
+// 🔔 User Notification
+if (ticketOwner.notificationSettings?.email?.ticketStatusUpdates) {
+  const userNotification = new Notification({
+    userId: req.user._id,
+    title: 'Ticket Updated',
+    content: `Your ticket "${updatedTicket.title}" has been updated.`,
+    type: 'ticket',
+    priority: 'low',
+    link: `/tickets/${updatedTicket._id}`
+  });
+  notificationsToSave.push(userNotification.save());
+}
+
+// 🔔 Agent Notification (You may want to check agent preferences too, if applicable)
+if (updatedTicket.assignedTo?.userId) {
+  const agentUser = await User.findById(updatedTicket.assignedTo.userId);
+
+  if (agentUser?.notificationSettings?.email?.ticketStatusUpdates) {
     const agentNotification = new Notification({
-      userId: updatedTicket.assignedTo,
+      userId: updatedTicket.assignedTo.userId,
       title: 'Ticket Updated',
       content: `Ticket "${updatedTicket.title}" assigned to you has been updated by the user.`,
       type: 'ticket',
       priority: 'low',
       link: `/tickets/${updatedTicket._id}`
     });
+    notificationsToSave.push(agentNotification.save());
+  }
+}
 
-	// 🔔 Admin Notification
-	const adminNotification = new Notification({
-	title: 'Ticket Updated',
-	content: `Ticket "${updatedTicket.title}" has been updated by the user.`,
-	type: 'ticket',
-	priority: 'low',
-	link: `/tickets/${updatedTicket._id}`,
-	isAdminNotification: true
-	});
+// 🔔 Admin Notification (always send if it's a global admin board notification)
+const adminNotification = new Notification({
+  title: 'Ticket Updated',
+  content: `Ticket "${updatedTicket.title}" has been updated by the user.`,
+  type: 'ticket',
+  priority: 'low',
+  link: `/tickets/${updatedTicket._id}`,
+  isAdminNotification: true
+});
+notificationsToSave.push(adminNotification.save());
 
 
-     await Promise.all([
-        userNotification.save(),
-        agentNotification.save(),
-        adminNotification.save()
-        ]);
+     await Promise.all(notificationsToSave);
 
     res.status(200).json({ success: true, data: updatedTicket });
   } catch (error) {
@@ -274,41 +296,53 @@ export const deleteTicket = async (req, res) => {
     });
     await auditLog.save();
 
+    // Fetch the user who owns the ticket to check their notification preferences
+    const ticketOwner = await User.findById(req.user._id);
+
+    const notificationsToSave = [];
+
     // 🔔 User Notification
-    const userNotification = new Notification({
-      userId: req.user._id,
+    if (ticketOwner.notificationSettings?.email?.ticketStatusUpdates) {
+      const userNotification = new Notification({
+        userId: req.user._id,
+        title: 'Ticket Deleted',
+        content: `Your ticket "${ticket.title}" has been deleted.`,
+        type: 'ticket',
+        priority: 'low',
+        link: `/tickets`
+      });
+      notificationsToSave.push(userNotification.save());
+    }
+
+    // 🔔 Agent Notification (if assigned and has preferences)
+    if (ticket.assignedTo?.userId) {
+      const agentUser = await User.findById(ticket.assignedTo.userId);
+
+      if (agentUser?.notificationSettings?.email?.ticketStatusUpdates) {
+        const agentNotification = new Notification({
+          userId: ticket.assignedTo.userId,
+          title: 'Ticket Deleted',
+          content: `Ticket "${ticket.title}" assigned to you has been deleted by the user.`,
+          type: 'ticket',
+          priority: 'low',
+          link: `/tickets`
+        });
+        notificationsToSave.push(agentNotification.save());
+      }
+    }
+
+    // 🔔 Admin Notification (always send)
+    const adminNotification = new Notification({
       title: 'Ticket Deleted',
-      content: `Your ticket "${ticket.title}" has been deleted.`,
+      content: `Ticket "${ticket.title}" has been deleted by the user.`,
       type: 'ticket',
       priority: 'low',
-      link: `/tickets`
+      link: `/tickets`,
+      isAdminNotification: true
     });
+    notificationsToSave.push(adminNotification.save());
 
-	// 🔔 Agent Notification
-    const agentNotification = new Notification({
-      userId: ticket.assignedTo,
-      title: 'Ticket Deleted',
-      content: `Ticket "${ticket.title}" assigned to you has been deleted by the user.`,
-      type: 'ticket',
-      priority: 'low',
-      link: `/tickets`
-    });
-
-	// 🔔 Admin Notification
-	const adminNotification = new Notification({
-	title: 'Ticket Deleted',
-	content: `Ticket "${ticket.title}" has been deleted by the user.`,
-	type: 'ticket',
-	priority: 'low',
-	link: `/tickets`,
-	isAdminNotification: true
-	});
-
-     await Promise.all([
-        userNotification.save(),
-        agentNotification.save(),
-        adminNotification.save()
-        ]);
+    await Promise.all(notificationsToSave);
 
     res.status(200).json({ success: true, message: "Ticket deleted" });
   } catch (error) {
@@ -543,17 +577,22 @@ export const sendTicketMessage = async (req, res) => {
 
     await Promise.all(
       otherParticipants.map(async participant => {
-        const notification = new Notification({
-          userId: participant.userId,
-          title: `New message in ticket #${ticket._id}`,
-          content: `New message from ${user.firstName}: ${content.substring(0, 50)}...`,
-          type: 'ticket-message',
-          priority: 'medium',
-          link: `/tickets/${ticket._id}`
-        });
-        await notification.save();
-      })
-    );
+        const recipient = await User.findById(participant.userId);
+
+    // Only notify if newResponses email setting is enabled
+    if (recipient?.notificationSettings?.email?.newResponses) {
+      const notification = new Notification({
+        userId: participant.userId,
+        title: `New message in ticket #${ticket._id}`,
+        content: `New message from ${user.firstName}: ${content.substring(0, 50)}...`,
+        type: 'ticket-message',
+        priority: 'medium',
+        link: `/tickets/${ticket._id}`
+      });
+      await notification.save();
+    }
+  })
+);
 
     res.status(201).json({ 
       success: true, 

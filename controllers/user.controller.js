@@ -5,7 +5,10 @@ import Audit from "../models/audit.model.js";
 import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
 import passport from "passport";
-import { generateAccessToken, generateRefreshToken } from './auth.controller.js';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "./auth.controller.js";
 import Room from "../models/room.model.js";
 
 // @desc    Check if user exists
@@ -26,6 +29,28 @@ const checkUserExists = asyncHandler(async (req, res) => {
     message: userExists ? "Email is already registered" : "Email is available",
   });
 });
+
+// Create a default room for new users
+const createDefaultRoom = async (userId, firstName) => {
+  try {
+    const newRoom = new Room({
+      users: [userId],
+      name: `${firstName}'s Room`,
+    });
+
+    await newRoom.save();
+
+    // Add room to user's rooms array
+    await User.findByIdAndUpdate(userId, {
+      $push: { rooms: newRoom._id },
+    });
+
+    return newRoom;
+  } catch (error) {
+    console.error("Error creating default room:", error);
+    throw error;
+  }
+};
 
 // @desc    Register a new user
 // @route   POST /api/users
@@ -108,23 +133,8 @@ const registerUser = asyncHandler(async (req, res) => {
       },
     });
 
-    // If user is an agent, add them to the agents-room
-    if (user.role === "agent") {
-      const agentsRoom = await Room.findOne({ name: "agents-room" });
-      if (agentsRoom) {
-        // Add user to room's users array if not already there
-        if (!agentsRoom.users.includes(user._id)) {
-          agentsRoom.users.push(user._id);
-          await agentsRoom.save();
-          
-          // Add room to user's rooms array if not already there
-          if (!user.rooms.includes(agentsRoom._id)) {
-            user.rooms.push(agentsRoom._id);
-            await user.save();
-          }
-        }
-      }
-    }
+    // Create default room for the user
+    await createDefaultRoom(user._id, user.firstName);
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id);
@@ -137,10 +147,10 @@ const registerUser = asyncHandler(async (req, res) => {
     // refresh token cookie
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: true, 
-      sameSite: "Lax", 
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      secure: true,
+      sameSite: "Lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     // If 2FA is not enabled, return full user data with tokens
@@ -151,9 +161,8 @@ const registerUser = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       profilePicture: user.profilePicture,
-      accessToken
+      accessToken,
     });
-
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(400);
@@ -196,7 +205,7 @@ const loginUser = asyncHandler(async (req, res) => {
   if (user.securitySettings.twoFactorEnabled) {
     res.json({
       _id: user._id,
-      requires2FA: true
+      requires2FA: true,
     });
     return;
   }
@@ -212,10 +221,10 @@ const loginUser = asyncHandler(async (req, res) => {
   // refresh token cookie
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: true, 
-    sameSite: "Lax", 
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    secure: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   // If 2FA is not enabled, return full user data with tokens
@@ -226,7 +235,7 @@ const loginUser = asyncHandler(async (req, res) => {
     email: user.email,
     role: user.role,
     profilePicture: user.profilePicture,
-    accessToken
+    accessToken,
   });
 });
 
@@ -272,17 +281,19 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     }
 
     // Change password if provided
-if (req.body.password && req.body.currentPassword) {
-  // Verify current password first
-  const isPasswordValid = await user.matchPassword(req.body.currentPassword);
-  if (!isPasswordValid) {
-    res.status(401);
-    throw new Error("Current password is incorrect");
-  }
-  
-  user.password = req.body.password; // Will be hashed by pre-validate hook
-  user.securitySettings.lastPasswordChange = Date.now();
-}
+    if (req.body.password && req.body.currentPassword) {
+      // Verify current password first
+      const isPasswordValid = await user.matchPassword(
+        req.body.currentPassword
+      );
+      if (!isPasswordValid) {
+        res.status(401);
+        throw new Error("Current password is incorrect");
+      }
+
+      user.password = req.body.password; // Will be hashed by pre-validate hook
+      user.securitySettings.lastPasswordChange = Date.now();
+    }
 
     const updatedUser = await user.save();
 
@@ -439,7 +450,7 @@ const generateToken = (id) => {
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
     .select("-password")
-    .populate('rooms');
+    .populate("rooms");
 
   if (user) {
     res.json(user);
@@ -453,7 +464,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-  try{
+  try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -614,7 +625,7 @@ const googleCallback = (req, res, next) => {
 };
 
 export const uploadProfilePicture = async (req, res) => {
-   console.log("Incoming file:", req.file);
+  console.log("Incoming file:", req.file);
   console.log("User ID:", req.user._id); // if you're using userId
 
   try {
@@ -622,7 +633,7 @@ export const uploadProfilePicture = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const base64Image = req.file.buffer.toString('base64');
+    const base64Image = req.file.buffer.toString("base64");
     const mimeType = req.file.mimetype;
 
     const base64DataUri = `data:${mimeType};base64,${base64Image}`;
