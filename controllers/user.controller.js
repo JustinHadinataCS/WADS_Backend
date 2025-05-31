@@ -126,14 +126,34 @@ const registerUser = asyncHandler(async (req, res) => {
       }
     }
 
-    res.status(201).json({
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Save refresh token to user
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // refresh token cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true, 
+      sameSite: "Lax", 
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    // If 2FA is not enabled, return full user data with tokens
+    res.json({
       _id: user._id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      profilePicture: user.profilePicture,
+      accessToken
     });
+
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(400);
