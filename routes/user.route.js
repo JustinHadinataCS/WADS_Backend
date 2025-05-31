@@ -8,6 +8,7 @@ import {
   getUsers,
   deleteUser,
   getUserById,
+  getAuditLogsByUser,
   updateUser,
   updateNotificationSettings,
   updateSecuritySettings,
@@ -294,6 +295,9 @@ router.route('/:id')
   .get(protect, admin, getUserById)
   .put(protect, admin, updateUser)
   .delete(protect, admin, deleteUser);
+
+router.route('/activity/:id')
+  .get(protect, admin, getAuditLogsByUser)
 
 /**
  * @swagger

@@ -1,9 +1,9 @@
 // FILE: controllers/userController.js
-import mongoose from "mongoose"; // Add this at the top of your file
 import User from "../models/user.model.js";
+import Ticket from "../models/ticket.model.js";
+import Audit from "../models/audit.model.js";
 import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import passport from "passport";
 import { generateAccessToken, generateRefreshToken } from './auth.controller.js';
 import Room from "../models/room.model.js";
@@ -514,6 +514,37 @@ const getUserById = asyncHandler(async (req, res) => {
   
 });
 
+// @desc    Get user activity by ID
+// @route   GET /api/users/activity/:id
+// @access  Private/Admin
+const getAuditLogsByUser = asyncHandler(async (req,res) => {
+  const { id } = req.params;
+  const auditLogs = await Audit.find({ performedBy: id })
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .populate({ path: 'performedBy', select: 'firstName lastName email role' });
+
+  const result = await Promise.all(
+    auditLogs.map(async (log) => {
+      const ticket = await Ticket.findOne({ _id: log.ticketId }).select('title status'); // customize fields
+      return {
+        ...log.toObject(),
+        ticketData: ticket || null, 
+      };
+    })
+  );
+  try {
+    if(id){
+      res.status(200).json(result);
+    }else {
+      return res.status(404).json({ success: false, message: "User not found" });
+    } 
+  } catch (error) {
+    console.error("Error fetching audit logs by user:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+})
+
 // @desc    Update user notification settings
 // @route   PUT /api/users/:id/notifications
 // @access  Private
@@ -629,6 +660,7 @@ export {
   getUsers,
   deleteUser,
   getUserById,
+  getAuditLogsByUser,
   updateUser,
   updateNotificationSettings,
   updateSecuritySettings,
