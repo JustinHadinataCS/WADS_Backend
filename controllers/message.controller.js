@@ -192,7 +192,8 @@ export const getUserRoom = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    let rooms = currentUser.rooms || [];
+    // Filter out ticket rooms and only keep forum rooms
+    let rooms = (currentUser.rooms || []).filter((room) => !room.ticketId);
 
     // If user is an agent, ensure they have access to the agents-room
     if (currentUser.role === "agent") {

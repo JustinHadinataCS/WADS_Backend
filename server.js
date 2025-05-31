@@ -25,7 +25,7 @@ import passport from "./middleware/auth.js";
 import responseTimeLogger from "./middleware/responseTimeLogger.js";
 import uptimeLogger from "./middleware/uptimeLogger.js";
 import authRoutes from "./routes/auth.route.js";
-import socketHandler from "./socket/index.js";
+import { initializeSocket } from "./socket/index.js";
 import User from "./models/user.model.js";
 
 import { specs } from "./config/swagger.js";
@@ -41,35 +41,9 @@ const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: { origin: "http://localhost:5173", methods: ["GET", "POST"] },
-  path: "/socket.io",
-});
-
-// Socket.io middleware for authentication
-io.use(async (socket, next) => {
-  try {
-    const token = socket.handshake.auth.token;
-    if (!token) {
-      return next(new Error("Authentication error"));
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
-    if (!user) {
-      return next(new Error("User not found"));
-    }
-
-    socket.user = user;
-    next();
-  } catch (err) {
-    console.error("Socket authentication error:", err);
-    next(new Error("Authentication error"));
-  }
-});
-
-socketHandler(io);
+// Initialize Socket.IO
+const io = initializeSocket(server);
+app.set("io", io);
 
 // Middleware
 app.use(helmet());
@@ -163,8 +137,6 @@ app.use((req, res) => {
 
 // Global error handler
 app.use(errorHandler);
-
-app.set("io", io);
 
 // MongoDB connection and server startup
 if (process.env.NODE_ENV !== "test") {
