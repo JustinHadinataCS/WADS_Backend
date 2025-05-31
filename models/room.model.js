@@ -1,12 +1,15 @@
 import mongoose from "mongoose";
+const { Schema } = mongoose;
 
-const roomSchema = new mongoose.Schema({
-  users: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+const RoomSchema = new Schema({
   name: { type: String, required: true },
-  messages: [{ type: mongoose.Schema.Types.ObjectId, ref: "Message" }],
+  users: [{ type: Schema.Types.ObjectId, ref: "User" }],
   isPublic: { type: Boolean, default: false },
+  ticketId: { type: Schema.Types.ObjectId, ref: "Ticket" },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
-const Room = mongoose.model("Room", roomSchema);
+const Room = mongoose.model("Room", RoomSchema);
 
 export default Room;
