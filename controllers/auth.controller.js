@@ -5,7 +5,7 @@ import asyncHandler from 'express-async-handler';
 // Generate access token
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '15m' // Access token expires in 15 minutes
+    expiresIn: '12h' // Access token expires in 12 hours
   });
 };
 
