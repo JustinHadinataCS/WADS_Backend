@@ -682,36 +682,54 @@ const updateNotificationSettings = asyncHandler(async (req, res) => {
 
 // Google OAuth login
 const googleLogin = (req, res, next) => {
+  const frontendCallbackUrl = req.query.redirect_uri || 'http://localhost:5173/auth/google/callback';
+  
   passport.authenticate("google", {
     scope: ["profile", "email"],
     prompt: "select_account",
+    state: frontendCallbackUrl // Pass the frontend callback URL in state
   })(req, res, next);
 };
 
-// Google OAuth callback
-const googleCallback = (req, res, next) => {
+// Google OAuth callback - Handles Google's response
+const googleCallback = async (req, res, next) => {
   passport.authenticate(
     "google",
-    {
-      failureRedirect: "/login",
-      session: false,
-    },
-    (err, user) => {
-      if (err) {
-        return next(err);
+    { failureRedirect: "/login", session: false },
+    async (err, user) => {
+      try {
+        if (err) {
+          console.error('Google OAuth Error:', err);
+          return res.redirect('http://localhost:5173/login?error=auth_failed');
+        }
+
+        if (!user) {
+          return res.redirect('http://localhost:5173/login?error=no_user');
+        }
+
+        // Get the state parameter which should contain the frontend callback URL
+        const frontendCallbackUrl = req.query.state || 'http://localhost:5173/auth/google/callback';
+
+        // Prepare user data
+        const userData = {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          profilePicture: user.profilePicture,
+          accessToken: user.accessToken,
+        };
+
+        // Redirect to frontend with user data
+        const redirectUrl = `${frontendCallbackUrl}?userData=${encodeURIComponent(JSON.stringify(userData))}`;
+        console.log('Redirecting to:', redirectUrl);
+        return res.redirect(redirectUrl);
+        
+      } catch (error) {
+        console.error('Google Callback Error:', error);
+        return res.redirect('http://localhost:5173/login?error=server_error');
       }
-      if (!user) {
-        return res.status(401).json({ message: "Authentication failed" });
-      }
-      const token = generateToken(user._id);
-      res.json({
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        token,
-      });
     }
   )(req, res, next);
 };

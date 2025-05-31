@@ -14,6 +14,12 @@ const UserSchema = new Schema({
     type: String,
     required: [true, "Please enter last name"],
     trim: true,
+    validate: {
+      validator: function(v) {
+        return v !== undefined && v !== null;
+      },
+      message: "Last name must be defined"
+    }
   },
   email: {
     type: String,
@@ -28,7 +34,7 @@ const UserSchema = new Schema({
   },
   phoneNumber: {
     type: String,
-    required: [true, "Please enter phone number"],
+    required: false,
     trim: true,
   },
   lineUserId: {

@@ -86,16 +86,73 @@ app.use(passport.session());
 
 // Google OAuth routes
 app.get(
-  "/api/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  "/api/users/auth/google",
+  passport.authenticate("google", { 
+    scope: ["profile", "email"],
+    prompt: "select_account"
+  })
 );
 
 app.get(
-  "/api/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  (req, res) => {
-    // Successful authentication, redirect home
-    res.redirect("/");
+  "/api/users/auth/google/callback",
+  (req, res, next) => {
+    passport.authenticate("google", { 
+      failureRedirect: "/login",
+      session: false 
+    }, async (err, user, info) => {
+      try {
+        if (err) {
+          console.error('Google OAuth Error:', err);
+          return res.redirect('http://localhost:5173/login');
+        }
+        if (!user) {
+          return res.redirect('http://localhost:5173/login');
+        }
+
+        // Generate new tokens
+        const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+          expiresIn: '12h'
+        });
+        const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, {
+          expiresIn: '7d'
+        });
+
+        // Save refresh token to user
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        // Set refresh token cookie
+        res.cookie("refreshToken", refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "Lax",
+          path: "/",
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        
+        // Get the frontend callback URL from state
+        const frontendCallbackUrl = req.query.state || 'http://localhost:5173/auth/google/callback';
+
+        // Prepare user data with the new access token
+        const userData = {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          profilePicture: user.profilePicture,
+          accessToken: accessToken, // Use the newly generated access token
+        };
+
+        // Redirect to frontend with user data
+        const redirectUrl = `${frontendCallbackUrl}?userData=${encodeURIComponent(JSON.stringify(userData))}`;
+        return res.redirect(redirectUrl);
+
+      } catch (error) {
+        console.error('Token Generation Error:', error);
+        return res.redirect('http://localhost:5173/login');
+      }
+    })(req, res, next);
   }
 );
 
