@@ -1,5 +1,5 @@
 import Message from "../models/message.model.js";
-import User from '../models/user.model.js';
+import User from "../models/user.model.js";
 import Room from "../models/room.model.js";
 import mongoose from "mongoose";
 
@@ -9,9 +9,12 @@ export const getMessagesByRoom = async (req, res) => {
     const currentUserId = req.user._id;
 
     // Agent group
-    if (roomId === 'agents-room') {
-      if (req.user.role !== 'agent') {
-        return res.status(403).json({ message: "Only agents can access this room" });
+    if (roomId === "agents-room") {
+      // Check if user is an agent
+      if (req.user.role !== "agent") {
+        return res
+          .status(403)
+          .json({ message: "Only agents can access this room" });
       }
 
       // Fetch messages tagged with 'agents-room'
@@ -19,7 +22,7 @@ export const getMessagesByRoom = async (req, res) => {
       const limit = 20;
       const skip = (page - 1) * limit;
 
-      const messages = await Message.find({ roomId: 'agents-room' })
+      const messages = await Message.find({ roomId: "agents-room" })
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 });
@@ -57,7 +60,7 @@ export const createMessage = async (req, res) => {
   const currentUserId = req.user._id;
   const { roomId } = req.params;
   const { message } = req.body;
-  const io = req.app.get('io');
+  const io = req.app.get("io");
 
   if (!roomId || !message) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -65,8 +68,8 @@ export const createMessage = async (req, res) => {
 
   let allowed = false;
 
-  if (roomId === 'agents-room') {
-    allowed = req.user.role === 'agent';
+  if (roomId === "agents-room") {
+    allowed = req.user.role === "agent";
   } else {
     const room = await Room.findById(roomId);
     allowed = room?.users.includes(currentUserId);
@@ -94,7 +97,7 @@ export const createMessage = async (req, res) => {
 
   try {
     await newMessage.save();
-    io.to(roomId).emit('new-message', newMessage);
+    io.to(roomId).emit("new-message", newMessage);
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Error saving message:", error);
@@ -122,23 +125,57 @@ export const createRoom = async (req, res) => {
     });
 
     if (existingRoom) {
-      return res.json({ roomId: existingRoom._id, message: "Room already exists" });
+      return res.json({
+        roomId: existingRoom._id,
+        message: "Room already exists",
+      });
     }
 
     const newRoom = new Room({
       users: [currentUserId, otherUser._id],
-      name: `Room between ${req.user.firstName} and ${otherUser.firstName}`,
+      name: `Chat between ${req.user.firstName} and ${otherUser.firstName}`,
     });
 
     await newRoom.save();
 
-    await User.updateOne({ _id: currentUserId }, { $push: { rooms: newRoom._id } });
-    await User.updateOne({ _id: otherUser._id }, { $push: { rooms: newRoom._id } });
+    // Add room to both users' rooms array
+    await User.updateOne(
+      { _id: currentUserId },
+      { $push: { rooms: newRoom._id } }
+    );
+    await User.updateOne(
+      { _id: otherUser._id },
+      { $push: { rooms: newRoom._id } }
+    );
 
-    res.json({ roomId: newRoom._id });
+    res.json({
+      roomId: newRoom._id,
+      room: newRoom,
+      message: "Room created successfully",
+    });
   } catch (err) {
     console.error("Error creating room:", err);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Initialize agents room
+const initializeAgentsRoom = async () => {
+  try {
+    let agentsRoom = await Room.findOne({ name: "agents-room" });
+
+    if (!agentsRoom) {
+      agentsRoom = await Room.create({
+        name: "agents-room",
+        users: [],
+        isPublic: true,
+      });
+    }
+
+    return agentsRoom;
+  } catch (error) {
+    console.error("Error initializing agents room:", error);
+    throw error;
   }
 };
 
@@ -147,7 +184,7 @@ export const getUserRoom = async (req, res) => {
     const currentUserId = req.user._id;
     console.log("Fetching rooms for User ID:", currentUserId);
 
-    const currentUser = await User.findById(currentUserId).populate('rooms');
+    const currentUser = await User.findById(currentUserId).populate("rooms");
     console.log("Fetched User with populated rooms:", currentUser);
 
     if (!currentUser) {
@@ -155,8 +192,20 @@ export const getUserRoom = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Return empty array if user has no rooms
-    const rooms = currentUser.rooms || [];
+    let rooms = currentUser.rooms || [];
+
+    // If user is an agent, ensure they have access to the agents-room
+    if (currentUser.role === "agent") {
+      const agentsRoom = await initializeAgentsRoom();
+
+      // Add agents-room to the list if not already present
+      if (
+        !rooms.some((room) => room._id.toString() === agentsRoom._id.toString())
+      ) {
+        rooms.push(agentsRoom);
+      }
+    }
+
     res.json(rooms);
   } catch (err) {
     console.error("Error fetching rooms:", err);
@@ -168,8 +217,10 @@ export const agentRoom = async (req, res) => {
   try {
     const currentUser = req.user;
 
-    if (!currentUser || currentUser.role !== 'agent') {
-      return res.status(403).json({ message: "Only agents can access this room" });
+    if (!currentUser || currentUser.role !== "agent") {
+      return res
+        .status(403)
+        .json({ message: "Only agents can access this room" });
     }
 
     res.json({ roomId: "agents-room" });

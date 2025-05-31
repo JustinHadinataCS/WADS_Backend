@@ -18,17 +18,19 @@ import chatRoutes from "./routes/chat.routes.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import analyticRoutes from "./routes/analytic.route.js";
 import twoFactorRoutes from "./routes/twoFactor.route.js";
-import messageRoutes from "./routes/message.route.js"
+import messageRoutes from "./routes/message.route.js";
 import errorHandler from "./middleware/errorHandler.js";
 import session from "express-session";
 import passport from "./middleware/auth.js";
 import responseTimeLogger from "./middleware/responseTimeLogger.js";
 import uptimeLogger from "./middleware/uptimeLogger.js";
-import authRoutes from './routes/auth.route.js';
+import authRoutes from "./routes/auth.route.js";
 import socketHandler from "./socket/index.js";
+import User from "./models/user.model.js";
 
 import { specs } from "./config/swagger.js";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 
 // Load environment variables
 dotenv.config();
@@ -41,17 +43,43 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: { origin: "http://localhost:5173", methods: ["GET", "POST"] },
+  path: "/socket.io",
 });
 
-socketHandler(io)
+// Socket.io middleware for authentication
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error("Authentication error"));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return next(new Error("User not found"));
+    }
+
+    socket.user = user;
+    next();
+  } catch (err) {
+    console.error("Socket authentication error:", err);
+    next(new Error("Authentication error"));
+  }
+});
+
+socketHandler(io);
 
 // Middleware
 app.use(helmet());
 // app.use(cors()); //VALUE BEFORE CHANGED TO CREDENTIALS:TRUE
-app.use(cors({
-  origin: "http://localhost:5173", 
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(responseTimeLogger);
 app.use(uptimeLogger);
@@ -121,7 +149,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticRoutes);
 app.use("/api/2fa", twoFactorRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes)
+app.use("/api/messages", messageRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -136,7 +164,7 @@ app.use((req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-app.set('io', io)
+app.set("io", io);
 
 // MongoDB connection and server startup
 if (process.env.NODE_ENV !== "test") {
