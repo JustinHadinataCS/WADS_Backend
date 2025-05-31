@@ -217,9 +217,6 @@ const adminCreateUser = asyncHandler(async (req, res) => {
       },
     });
 
-    // Optionally create a default room
-    await createDefaultRoom(user._id, user.firstName);
-
     res.status(201).json({
       message: "User created successfully",
       user: {
