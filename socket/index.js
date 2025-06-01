@@ -143,28 +143,34 @@ export const initializeSocket = (server) => {
     });
 
     // Handle normal messages
-    socket.on("forum:send-message", async ({ message, roomId }, callback) => {
+    socket.on("forum:send-message", async ({ content, roomId }, callback) => {
       try {
         if (!socket.user) {
           console.error("User not authenticated");
-          callback({ error: "User not authenticated" });
+          if (typeof callback === 'function') {
+            callback({ error: "User not authenticated" });
+          }
           return;
         }
 
-        if (!message?.trim()) {
+        if (!content?.trim()) {
           console.error("Message content required");
-          callback({ error: "Message content required" });
+          if (typeof callback === 'function') {
+            callback({ error: "Message content required" });
+          }
           return;
         }
 
         if (!roomId) {
           console.error("Room ID required");
-          callback({ error: "Room ID required" });
+          if (typeof callback === 'function') {
+            callback({ error: "Room ID required" });
+          }
           return;
         }
 
         const newMessage = new Message({
-          content: message.trim(),
+          content: content.trim(),
           roomId,
           user: {
             userId: socket.user._id,
@@ -180,11 +186,15 @@ export const initializeSocket = (server) => {
         io.to(roomId).emit("forum:message-received", newMessage);
         console.log(`Message sent to ${roomId}:`, newMessage);
 
-        // Acknowledge successful message
-        callback({ success: true, message: newMessage });
+        // Acknowledge successful message if callback is provided
+        if (typeof callback === 'function') {
+          callback({ success: true, message: newMessage });
+        }
       } catch (error) {
         console.error("Error handling message:", error);
-        callback({ error: "Error sending message" });
+        if (typeof callback === 'function') {
+          callback({ error: "Error sending message" });
+        }
       }
     });
   });
