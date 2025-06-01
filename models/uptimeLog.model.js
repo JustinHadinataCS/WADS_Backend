@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
 
 const uptimeLogSchema = new mongoose.Schema({
-  timestamp: { type: Date, default: Date.now },
+  timestamp: { 
+    type: Date, 
+    default: Date.now,
+    expires: 2592000
+  },
   status: { type: String, enum: ['up', 'down'], required: true },
   message: { type: String }
 });

@@ -1,4 +1,5 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
@@ -17,15 +18,19 @@ import chatRoutes from "./routes/chat.routes.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import analyticRoutes from "./routes/analytic.route.js";
 import twoFactorRoutes from "./routes/twoFactor.route.js";
+import messageRoutes from "./routes/message.route.js";
 import errorHandler from "./middleware/errorHandler.js";
 import session from "express-session";
 import passport from "./middleware/auth.js";
 import responseTimeLogger from "./middleware/responseTimeLogger.js";
 import uptimeLogger from "./middleware/uptimeLogger.js";
-import authRoutes from './routes/auth.route.js';
+import authRoutes from "./routes/auth.route.js";
+import { initializeSocket } from "./socket/index.js";
+import User from "./models/user.model.js";
 
 import { specs } from "./config/swagger.js";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 
 // Load environment variables
 dotenv.config();
@@ -36,13 +41,20 @@ const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: { origin: "http://localhost:5173", methods: ["GET", "POST"] },
-});
+// Initialize Socket.IO
+const io = initializeSocket(server);
+app.set("io", io);
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+// app.use(cors()); //VALUE BEFORE CHANGED TO CREDENTIALS:TRUE
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+app.use(cookieParser());
 app.use(responseTimeLogger);
 app.use(uptimeLogger);
 
@@ -74,16 +86,73 @@ app.use(passport.session());
 
 // Google OAuth routes
 app.get(
-  "/api/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  "/api/users/auth/google",
+  passport.authenticate("google", { 
+    scope: ["profile", "email"],
+    prompt: "select_account"
+  })
 );
 
 app.get(
-  "/api/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  (req, res) => {
-    // Successful authentication, redirect home
-    res.redirect("/");
+  "/api/users/auth/google/callback",
+  (req, res, next) => {
+    passport.authenticate("google", { 
+      failureRedirect: "/login",
+      session: false 
+    }, async (err, user, info) => {
+      try {
+        if (err) {
+          console.error('Google OAuth Error:', err);
+          return res.redirect('http://localhost:5173/login');
+        }
+        if (!user) {
+          return res.redirect('http://localhost:5173/login');
+        }
+
+        // Generate new tokens
+        const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+          expiresIn: '12h'
+        });
+        const refreshToken = jwt.sign({ id: user._id }, process.env.REFRESH_TOKEN_SECRET, {
+          expiresIn: '7d'
+        });
+
+        // Save refresh token to user
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        // Set refresh token cookie
+        res.cookie("refreshToken", refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "Lax",
+          path: "/",
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        
+        // Get the frontend callback URL from state
+        const frontendCallbackUrl = req.query.state || 'http://localhost:5173/auth/google/callback';
+
+        // Prepare user data with the new access token
+        const userData = {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          profilePicture: user.profilePicture,
+          accessToken: accessToken, // Use the newly generated access token
+        };
+
+        // Redirect to frontend with user data
+        const redirectUrl = `${frontendCallbackUrl}?userData=${encodeURIComponent(JSON.stringify(userData))}`;
+        return res.redirect(redirectUrl);
+
+      } catch (error) {
+        console.error('Token Generation Error:', error);
+        return res.redirect('http://localhost:5173/login');
+      }
+    })(req, res, next);
   }
 );
 
@@ -111,6 +180,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticRoutes);
 app.use("/api/2fa", twoFactorRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -138,13 +208,6 @@ if (process.env.NODE_ENV !== "test") {
       process.exit(1);
     });
 }
-
-io.on("connection", (socket) => {
-  console.log(`User Connected: ${socket.id}`);
-  socket.on("forum:send-message", (data) =>
-    socket.broadcast.emit("forum:message-received", data)
-  );
-});
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {

@@ -1,6 +1,6 @@
 import express from 'express'
 const router = express.Router();
-import { createNotification, deleteNotification, getNotificationById, getNotifications, markAsRead, getAdminNotifications } from '../controllers/notification.controller.js';
+import { createNotification, deleteNotification, getNotificationById, getNotifications, markAsRead, getAdminNotifications, markAllAsRead } from '../controllers/notification.controller.js';
 import { admin, protect, user } from '../middleware/auth.js';
 
 router.use(protect)
@@ -156,6 +156,8 @@ router.post('/', admin, createNotification); // Route to create a notification
  *         description: Notification marked as read
  */
 router.put('/:notificationId/read', markAsRead); // Route to mark a notification as read
+
+router.put('/mark-all-read', markAllAsRead); // Route to mark a notification as read
 
 /**
  * @swagger

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import Room from "./room.model.js";
 
 const { Schema } = mongoose;
 
@@ -13,6 +14,12 @@ const UserSchema = new Schema({
     type: String,
     required: [true, "Please enter last name"],
     trim: true,
+    validate: {
+      validator: function(v) {
+        return v !== undefined && v !== null;
+      },
+      message: "Last name must be defined"
+    }
   },
   email: {
     type: String,
@@ -27,7 +34,7 @@ const UserSchema = new Schema({
   },
   phoneNumber: {
     type: String,
-    required: [true, "Please enter phone number"],
+    required: false,
     trim: true,
   },
   lineUserId: {
@@ -59,14 +66,8 @@ const UserSchema = new Schema({
   notificationSettings: {
     email: {
       ticketStatusUpdates: { type: Boolean, default: true },
-      newAgentResponses: { type: Boolean, default: true },
-      ticketResolution: { type: Boolean, default: true },
-      marketingUpdates: { type: Boolean, default: false },
-    },
-    inApp: {
-      desktopNotifications: { type: Boolean, default: true },
-      soundNotifications: { type: Boolean, default: true },
-    },
+       newResponses: { type: Boolean, default: true },
+    }
   },
   securitySettings: {
     twoFactorEnabled: { type: Boolean, default: false },
@@ -142,8 +143,9 @@ const UserSchema = new Schema({
   },
   refreshToken: {
     type: String,
-    default: null
+    default: null,
   },
+  rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: "Room" }],
 });
 
 // Hash password before saving
@@ -158,6 +160,64 @@ UserSchema.pre("save", async function (next) {
     next();
   } catch (error) {
     next(error);
+  }
+});
+
+// Handle agent room assignment after saving
+UserSchema.post("save", async function (doc) {
+  if (doc.role === "agent") {
+    try {
+      // Check if the "agents-room" already exists
+      let agentsRoom = await Room.findOne({ name: "agents-room" });
+
+      // If "agents-room" doesn't exist, create it
+      if (!agentsRoom) {
+        agentsRoom = await Room.create({
+          name: "agents-room",
+          users: [],
+          isPublic: true,
+        });
+      }
+
+      // Add "agents-room" to the agent's rooms array (if not already added)
+      if (!this.rooms.includes(agentsRoom._id)) {
+        this.rooms.push(agentsRoom._id);
+      }
+
+      // Add agent to the room's users array (if not already added)
+      if (!agentsRoom.users.includes(doc._id)) {
+        agentsRoom.users.push(doc._id);
+        await agentsRoom.save();
+      }
+
+      // Create individual rooms with other agents
+      const otherAgents = await User.find({ 
+        role: "agent", 
+        _id: { $ne: doc._id } 
+      });
+
+      for (const otherAgent of otherAgents) {
+        // Check if a room already exists between these two agents
+        const existingRoom = await Room.findOne({
+          users: { $all: [doc._id, otherAgent._id], $size: 2 },
+        });
+
+        if (!existingRoom) {
+          // Create a new room between the agents
+          const newRoom = await Room.create({
+            name: `Chat between ${doc.firstName} and ${otherAgent.firstName}`,
+            users: [doc._id, otherAgent._id],
+          });
+
+          // Add room to both agents' rooms array
+          doc.rooms.push(newRoom._id);
+          otherAgent.rooms.push(newRoom._id);
+          await otherAgent.save();
+        }
+      }
+    } catch (error) {
+      console.error("Error assigning agents-room:", error);
+    }
   }
 });
 
@@ -202,7 +262,7 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
     throw error;
   }
 };
-
+    
 // Create the model
 const User = mongoose.model("User", UserSchema);
 

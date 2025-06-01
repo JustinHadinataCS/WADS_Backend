@@ -7,7 +7,7 @@ const NotificationSchema = new Schema({
     content: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     timestamp: { type: Date, default: Date.now },
-    type: { type: String, enum: ['system', 'ticket', 'message', 'feedback', 'department'], default: 'system' },
+    type: { type: String, enum: ['system', 'ticket', 'message', 'feedback', 'department', 'ticket-message'], default: 'system' },
     priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
     link: { type: String, default: '' },
     isAdminNotification: { type: Boolean, default: false }

@@ -36,16 +36,45 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        const email = profile.emails[0].value;
+        const firstName = profile.name.givenName;
+        const lastName = profile.name.familyName;
+        const photo = profile.photos?.[0]?.value;
+
         // Check if user already exists
-        let user = await User.findOne({ googleId: profile.id });
+        let user = await User.findOne({ email });
 
         if (!user) {
           // Create new user if doesn't exist
           user = await User.create({
-            googleId: profile.id,
-            email: profile.emails[0].value,
-            name: profile.displayName,
-            isVerified: true, // Google accounts are pre-verified
+            firstName: firstName,
+            lastName: lastName || "",
+            email: email,
+            profilePicture: photo, // optional
+            phoneNumber: null, // or leave undefined
+            password: "&81237891bfd77sdfsfhjsdb(*!(83", // no password
+            department: null, // optional - update later
+            timezone: null, // optional - update later
+            role: "user", // Set default role to "user"
+            authProvider: "google", // flag for external login
+            notificationSettings: {
+              email: {
+                ticketStatusUpdates: true,
+                newAgentResponses: true,
+                ticketResolution: true,
+                marketingUpdates: false,
+              },
+              inApp: {
+                desktopNotifications: true,
+                soundNotifications: true,
+              },
+            },
+            securitySettings: {
+              twoFactorEnabled: false,
+              twoFactorMethod: null,
+              lastPasswordChange: null, // no password
+              passwordStrength: null,   // no password
+            },
           });
         }
 

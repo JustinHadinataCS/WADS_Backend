@@ -1,23 +1,25 @@
 // FILE: routes/userRoutes.js
-import express from 'express';
+import express from "express";
 import {
   registerUser,
+  adminCreateUser,
   loginUser,
   getUserProfile,
   updateUserProfile,
   getUsers,
   deleteUser,
   getUserById,
+  getAuditLogsByUser,
   updateUser,
   updateNotificationSettings,
   updateSecuritySettings,
   googleLogin,
   googleCallback,
   checkUserExists,
-  uploadProfilePicture
-} from '../controllers/user.controller.js';
-import { protect, admin } from '../middleware/auth.js';
-import multer from 'multer';
+  uploadProfilePicture,
+} from "../controllers/user.controller.js";
+import { protect, admin } from "../middleware/auth.js";
+import multer from "multer";
 
 const router = express.Router();
 
@@ -36,7 +38,7 @@ const router = express.Router();
  *         - department
  *         - timezone
  *       properties:
- *         firstName:
+          firstName:
  *           type: string
  *           description: User's first name
  *         lastName:
@@ -97,7 +99,7 @@ const router = express.Router();
  *                 message:
  *                   type: string
  */
-router.post('/check', checkUserExists);
+router.post("/check", checkUserExists);
 
 /**
  * @swagger
@@ -132,7 +134,94 @@ router.post('/check', checkUserExists);
  *                 token:
  *                   type: string
  */
-router.post('/', registerUser);
+router.post("/", registerUser);
+
+/**
+ * @swagger
+ * /api/users/admin-create:
+ *   post:
+ *     summary: Admin creates a new user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phoneNumber
+ *               - password
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: john.doe@example.com
+ *               phoneNumber:
+ *                 type: string
+ *                 example: "+1234567890"
+ *               password:
+ *                 type: string
+ *                 example: "SecurePass123"
+ *               department:
+ *                 type: string
+ *                 example: "Support"
+ *               timezone:
+ *                 type: string
+ *                 example: "America/New_York"
+ *               role:
+ *                 type: string
+ *                 enum: [user, agent, admin]
+ *                 example: "agent"
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User created successfully
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 60d0fe4f5311236168a109ca
+ *                     firstName:
+ *                       type: string
+ *                       example: John
+ *                     lastName:
+ *                       type: string
+ *                       example: Doe
+ *                     email:
+ *                       type: string
+ *                       example: john.doe@example.com
+ *                     role:
+ *                       type: string
+ *                       example: agent
+ *       400:
+ *         description: Bad request (missing fields or invalid data)
+ *       409:
+ *         description: Conflict – Email is already registered
+ *       401:
+ *         description: Unauthorized – Not authenticated
+ *       403:
+ *         description: Forbidden – Admin access required
+ */
+
+router.post("/admin-create", protect, admin, adminCreateUser);
 
 /**
  * @swagger
@@ -177,7 +266,7 @@ router.post('/', registerUser);
  *                 token:
  *                   type: string
  */
-router.post('/login', loginUser);
+router.post("/login", loginUser);
 
 /**
  * @swagger
@@ -209,7 +298,8 @@ router.post('/login', loginUser);
  *       200:
  *         description: Profile updated successfully
  */
-router.route('/profile')
+router
+  .route("/profile")
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
 
@@ -231,8 +321,7 @@ router.route('/profile')
  *               items:
  *                 $ref: '#/components/schemas/User'
  */
-router.route('/')
-  .get(protect, admin, getUsers);
+router.route("/").get(protect, admin, getUsers);
 
 /**
  * @swagger
@@ -290,10 +379,86 @@ router.route('/')
  *       200:
  *         description: User deleted successfully
  */
-router.route('/:id')
+router
+  .route("/:id")
   .get(protect, admin, getUserById)
   .put(protect, admin, updateUser)
   .delete(protect, admin, deleteUser);
+
+/**
+ * @swagger
+ * /api/users/activity/{id}:
+ *   get:
+ *     summary: Get audit logs by user ID (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user whose activity logs are to be fetched
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: A list of audit logs for the specified user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   action:
+ *                     type: string
+ *                     example: updated
+ *                   fieldChanged:
+ *                     type: string
+ *                     nullable: true
+ *                   previousValue:
+ *                     type: string
+ *                     nullable: true
+ *                   newValue:
+ *                     type: string
+ *                     nullable: true
+ *                   ticketId:
+ *                     type: string
+ *                   ticket:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                   performedBy:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       role:
+ *                         type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       403:
+ *         description: Forbidden - admin access required
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.route("/activity/:id").get(protect, admin, getAuditLogsByUser);
 
 /**
  * @swagger
@@ -338,7 +503,7 @@ router.route('/:id')
  *       200:
  *         description: Notification settings updated successfully
  */
-router.put('/:id/notifications', protect, updateNotificationSettings);
+router.put("/:id/notifications", protect, updateNotificationSettings);
 
 /**
  * @swagger
@@ -370,7 +535,7 @@ router.put('/:id/notifications', protect, updateNotificationSettings);
  *       200:
  *         description: Security settings updated successfully
  */
-router.put('/:id/security', protect, updateSecuritySettings);
+router.put("/:id/security", protect, updateSecuritySettings);
 
 /**
  * @swagger
@@ -382,7 +547,7 @@ router.put('/:id/security', protect, updateSecuritySettings);
  *       302:
  *         description: Redirect to Google login page
  */
-router.get('/auth/google', googleLogin);
+router.get("/auth/google", googleLogin);
 
 /**
  * @swagger
@@ -411,11 +576,11 @@ router.get('/auth/google', googleLogin);
  *                 token:
  *                   type: string
  */
-router.get('/auth/google/callback', googleCallback);
+router.get("/auth/google/callback", googleCallback);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-router.post('/upload-pfp', upload.single('pfp'), protect, uploadProfilePicture)
+router.post("/upload-pfp", upload.single("pfp"), protect, uploadProfilePicture);
 
 export default router;
