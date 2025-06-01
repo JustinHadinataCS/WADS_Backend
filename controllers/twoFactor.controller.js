@@ -41,42 +41,46 @@ const enable2FA = asyncHandler(async (req, res) => {
 // @route   POST /api/2fa/verify
 // @access  Private
 const verify2FA = asyncHandler(async (req, res) => {
-  const { token } = req.body;
-  const userId = req.user._id;
-  console.log('Verifying 2FA for user:', userId, 'with token:', token);
+    const token = req.body.userData.token;
+    const userId = req.user._id;
 
-  const user = await User.findById(userId);
-  if (!user) {
-    res.status(404);
-    throw new Error('User not found');
-  }
+    console.log(req.body.userData.token)
+    console.log('Verifying 2FA for user:', userId, 'with token:', token);
 
-  console.log('User security settings:', user.securitySettings);
-  if (!user.securitySettings.twoFactorSecret) {
-    console.log('No twoFactorSecret found in user settings');
-    res.status(400);
-    throw new Error('2FA setup not initiated');
-  }
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
 
-  // Verify the token
-  const isValid = verifyToken(user.securitySettings.twoFactorSecret, token);
-  console.log('Token verification result:', isValid);
+    console.log('User security settings:', user.securitySettings);
+    if (!user.securitySettings.twoFactorSecret) {
+      console.log('No twoFactorSecret found in user settings');
+      res.status(400);
+      throw new Error('2FA setup not initiated');
+    }
 
-  if (!isValid) {
-    res.status(400);
-    throw new Error('Invalid verification code');
-  }
+    // Verify the token
+    const isValid = verifyToken(user.securitySettings.twoFactorSecret, token);
+    console.log('Token verification result:', isValid);
 
-  // Enable 2FA
-  user.securitySettings.twoFactorEnabled = true;
-  user.securitySettings.twoFactorMethod = 'authenticator';
-  await user.save();
-  console.log('2FA enabled successfully for user');
+    if (!isValid) {
+      res.status(400);
+      throw new Error('Invalid verification code');
+    }
 
-  res.json({
-    message: '2FA enabled successfully'
-  });
+    // Enable 2FA
+    user.securitySettings.twoFactorEnabled = true;
+    user.securitySettings.twoFactorMethod = 'authenticator';
+    await user.save();
+    console.log('2FA enabled successfully for user');
+
+    res.json({
+      message: '2FA enabled successfully'
+    });
+
 });
+
 
 // @desc    Disable 2FA for a user
 // @route   POST /api/2fa/disable
@@ -132,14 +136,23 @@ const validate2FA = asyncHandler(async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
+  // refresh token cookie
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
   res.json({
     _id: user._id,
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
     role: user.role,
+    profilePicture: user.profilePicture,
     accessToken,
-    refreshToken
   });
 });
 
