@@ -73,7 +73,6 @@ const TicketSchema = new Schema(
         "Access Request",
         "General Inquiry",
         "Maintenance Request",
-        "Training Request",
         "Other",
       ],
     },
