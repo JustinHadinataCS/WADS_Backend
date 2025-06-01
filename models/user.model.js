@@ -150,7 +150,22 @@ const UserSchema = new Schema({
 
 // Hash password before saving
 UserSchema.pre("save", async function (next) {
-  if (this.role === "agent") {
+  if (!this.isModified("password")) {
+    return next();
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Handle agent room assignment after saving
+UserSchema.post("save", async function (doc) {
+  if (doc.role === "agent") {
     try {
       // Check if the "agents-room" already exists
       let agentsRoom = await Room.findOne({ name: "agents-room" });
@@ -170,52 +185,39 @@ UserSchema.pre("save", async function (next) {
       }
 
       // Add agent to the room's users array (if not already added)
-      if (!agentsRoom.users.includes(this._id)) {
-        agentsRoom.users.push(this._id);
+      if (!agentsRoom.users.includes(doc._id)) {
+        agentsRoom.users.push(doc._id);
         await agentsRoom.save();
       }
 
       // Create individual rooms with other agents
       const otherAgents = await User.find({ 
         role: "agent", 
-        _id: { $ne: this._id } 
+        _id: { $ne: doc._id } 
       });
 
       for (const otherAgent of otherAgents) {
         // Check if a room already exists between these two agents
         const existingRoom = await Room.findOne({
-          users: { $all: [this._id, otherAgent._id], $size: 2 },
+          users: { $all: [doc._id, otherAgent._id], $size: 2 },
         });
 
         if (!existingRoom) {
           // Create a new room between the agents
           const newRoom = await Room.create({
-            name: `Chat between ${this.firstName} and ${otherAgent.firstName}`,
-            users: [this._id, otherAgent._id],
+            name: `Chat between ${doc.firstName} and ${otherAgent.firstName}`,
+            users: [doc._id, otherAgent._id],
           });
 
           // Add room to both agents' rooms array
-          this.rooms.push(newRoom._id);
+          doc.rooms.push(newRoom._id);
           otherAgent.rooms.push(newRoom._id);
           await otherAgent.save();
         }
       }
     } catch (error) {
       console.error("Error assigning agents-room:", error);
-      return next(error);
     }
-  }
-
-  if (!this.isModified("password")) {
-    return next();
-  }
-
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
   }
 });
 
