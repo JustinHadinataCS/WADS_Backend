@@ -235,7 +235,7 @@ export const getAgentDashboardStats = async (req, res) => {
     startOfWeek.setHours(0, 0, 0, 0);
 
     const resolvedThisWeek = await Ticket.countDocuments({
-      assignedTo: agentId,
+      'assignedTo.userId': agentId,
       status: 'resolved',
       updatedAt: { $gte: startOfWeek }
     });
@@ -309,7 +309,7 @@ export const getAgentTicketStatus = async (req, res) => {
     const agentId = req.user._id;
 
     const statusCounts = await Ticket.aggregate([
-      { $match: { assignedTo: new mongoose.Types.ObjectId(agentId) } },
+      { $match: { 'assignedTo.userId': new mongoose.Types.ObjectId(agentId) } },
       {
         $group: {
           _id: '$status',
@@ -328,7 +328,7 @@ export const getAgentTicketStatus = async (req, res) => {
     for (const s of statusCounts) {
       formatted[s._id] = s.count;
     }
-
+    
     res.status(200).json(formatted);
   } catch (err) {
     console.error('Error getting agent ticket status:', err);
