@@ -53,28 +53,10 @@ const TicketSchema = new Schema(
       type: String,
       required: true,
       trim: true,
-      enum: [
-        "Radiology",
-        "Cardiology",
-        "Emergency",
-        "Laboratory",
-        "Pharmacy",
-        "Other",
-      ],
     },
     category: {
       type: String,
       required: true,
-      enum: [
-        "Equipment Issue",
-        "MRI Machine Calibration",
-        "Software Problem",
-        "Network Issue",
-        "Access Request",
-        "General Inquiry",
-        "Maintenance Request",
-        "Other",
-      ],
     },
     equipment: {
       name: {
@@ -85,7 +67,6 @@ const TicketSchema = new Schema(
       },
       type: {
         type: String,
-        enum: ["MRI Scanner", "CT Scanner", "X-Ray", "Ultrasound", "Other"],
         required: function () {
           return this.category === "Equipment Issue";
         },

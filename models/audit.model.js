@@ -14,17 +14,6 @@ const AuditSchema = new Schema({
   action: {
     type: String,
     required: true,
-    enum: [
-      'created',
-      'updated',
-      'deleted',
-      'status_changed',
-      'priority_changed',
-      'assigned',
-      'comment_added',
-      'attachment_added',
-      'feedback_submitted'
-    ]
   },
   fieldChanged: {
     type: String,
