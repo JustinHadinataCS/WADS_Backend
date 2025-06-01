@@ -105,6 +105,18 @@ export const createTicket = async (req, res) => {
   }
 
   try {
+    console.log("Ticket data:", ticketData.attachments);
+
+    // Convert attachments to match model structure if they exist
+    if (ticketData.attachments && Array.isArray(ticketData.attachments)) {
+      ticketData.attachments = ticketData.attachments.map(file => ({
+        fileName: file.fileName,
+        fileUrl: file.fileUrl || '', // Store base64 as fileUrl
+        uploadedBy: req.user._id,
+        uploadedAt: new Date()
+      }));
+    }
+
     // Round-robin agent assignment
     const agents = await User.find({ role: "agent" }).sort({ _id: 1 });
     if (agents.length === 0) {
