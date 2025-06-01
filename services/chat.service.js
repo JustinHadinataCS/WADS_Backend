@@ -211,7 +211,7 @@ export const chatService = {
             // Add conversation context if available
             const conversationContext = options.conversationContext || '';
             
-            const prompt = `${productContext}\n\n${conversationContext}\nUser Question: ${message}\n\nPlease provide a helpful response about our products and services. Include relevant product features and use cases when applicable:`;
+            const prompt = `${productContext}\n\n${conversationContext}\nUser Question: ${message}\n\nOnly answer the user's question directly. Do not include any extra or unnecessary information.`;
 
             // Make direct API call to Gemini 2.0 Flash
             const response = await fetch(
