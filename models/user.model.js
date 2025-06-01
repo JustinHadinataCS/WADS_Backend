@@ -171,7 +171,7 @@ UserSchema.post("save", async function (doc) {
       let agentsRoom = await Room.findOne({ name: "agents-room" });
 
       // If "agents-room" doesn't exist, create it
-      if (!agentsRoom) {
+      if (!agentsRoom) { 
         agentsRoom = await Room.create({
           name: "agents-room",
           users: [],
