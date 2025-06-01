@@ -208,10 +208,27 @@ export const chatService = {
                 await connectDB();
             }
 
-            // Add conversation context if available
-            const conversationContext = options.conversationContext || '';
+            // Fetch last 5 messages for context
+            const recentChats = await Chat.find({ userId })
+                .sort({ timestamp: -1 })
+                .limit(5)
+                .lean();
+
+            const chatHistory = recentChats
+                .reverse() // oldest first
+                .map(chat => `User: ${chat.message}\nAI: ${chat.response}`)
+                .join('\n');
+
+            // Add conversation context if available (optional, legacy)
+            // const conversationContext = options.conversationContext || '';
             
-            const prompt = `${productContext}\n\n${conversationContext}\nUser Question: ${message}\n\nOnly answer the user's question directly. Do not include any extra or unnecessary information.`;
+            const prompt = `${productContext}
+Chat History:
+${chatHistory}
+
+User Question: ${message}
+
+Only answer the user's question directly. If the user asks for a scenario, advice, or best practices, provide concise, relevant suggestions or recommendations. Do not include any unrelated or unnecessary information.`;
 
             // Make direct API call to Gemini 2.0 Flash
             const response = await fetch(
