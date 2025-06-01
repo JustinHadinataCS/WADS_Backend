@@ -1,5 +1,5 @@
 // FILE: routes/userRoutes.js
-import express from 'express';
+import express from "express";
 import {
   registerUser,
   adminCreateUser,
@@ -16,10 +16,10 @@ import {
   googleLogin,
   googleCallback,
   checkUserExists,
-  uploadProfilePicture
-} from '../controllers/user.controller.js';
-import { protect, admin } from '../middleware/auth.js';
-import multer from 'multer';
+  uploadProfilePicture,
+} from "../controllers/user.controller.js";
+import { protect, admin } from "../middleware/auth.js";
+import multer from "multer";
 
 const router = express.Router();
 
@@ -38,7 +38,7 @@ const router = express.Router();
  *         - department
  *         - timezone
  *       properties:
- *         firstName:
+          firstName:
  *           type: string
  *           description: User's first name
  *         lastName:
@@ -99,7 +99,7 @@ const router = express.Router();
  *                 message:
  *                   type: string
  */
-router.post('/check', checkUserExists);
+router.post("/check", checkUserExists);
 
 /**
  * @swagger
@@ -134,7 +134,7 @@ router.post('/check', checkUserExists);
  *                 token:
  *                   type: string
  */
-router.post('/', registerUser);
+router.post("/", registerUser);
 
 /**
  * @swagger
@@ -221,8 +221,7 @@ router.post('/', registerUser);
  *         description: Forbidden – Admin access required
  */
 
-
-router.post('/admin-create', protect, admin, adminCreateUser);
+router.post("/admin-create", protect, admin, adminCreateUser);
 
 /**
  * @swagger
@@ -267,7 +266,7 @@ router.post('/admin-create', protect, admin, adminCreateUser);
  *                 token:
  *                   type: string
  */
-router.post('/login', loginUser);
+router.post("/login", loginUser);
 
 /**
  * @swagger
@@ -299,7 +298,8 @@ router.post('/login', loginUser);
  *       200:
  *         description: Profile updated successfully
  */
-router.route('/profile')
+router
+  .route("/profile")
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
 
@@ -321,8 +321,7 @@ router.route('/profile')
  *               items:
  *                 $ref: '#/components/schemas/User'
  */
-router.route('/')
-  .get(protect, admin, getUsers);
+router.route("/").get(protect, admin, getUsers);
 
 /**
  * @swagger
@@ -380,7 +379,8 @@ router.route('/')
  *       200:
  *         description: User deleted successfully
  */
-router.route('/:id')
+router
+  .route("/:id")
   .get(protect, admin, getUserById)
   .put(protect, admin, updateUser)
   .delete(protect, admin, deleteUser);
@@ -458,8 +458,7 @@ router.route('/:id')
  *       500:
  *         description: Internal server error
  */
-router.route('/activity/:id')
-  .get(protect, admin, getAuditLogsByUser)
+router.route("/activity/:id").get(protect, admin, getAuditLogsByUser);
 
 /**
  * @swagger
@@ -504,7 +503,7 @@ router.route('/activity/:id')
  *       200:
  *         description: Notification settings updated successfully
  */
-router.put('/:id/notifications', protect, updateNotificationSettings);
+router.put("/:id/notifications", protect, updateNotificationSettings);
 
 /**
  * @swagger
@@ -536,7 +535,7 @@ router.put('/:id/notifications', protect, updateNotificationSettings);
  *       200:
  *         description: Security settings updated successfully
  */
-router.put('/:id/security', protect, updateSecuritySettings);
+router.put("/:id/security", protect, updateSecuritySettings);
 
 /**
  * @swagger
@@ -548,7 +547,7 @@ router.put('/:id/security', protect, updateSecuritySettings);
  *       302:
  *         description: Redirect to Google login page
  */
-router.get('/auth/google', googleLogin);
+router.get("/auth/google", googleLogin);
 
 /**
  * @swagger
@@ -577,11 +576,11 @@ router.get('/auth/google', googleLogin);
  *                 token:
  *                   type: string
  */
-router.get('/auth/google/callback', googleCallback);
+router.get("/auth/google/callback", googleCallback);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-router.post('/upload-pfp', upload.single('pfp'), protect, uploadProfilePicture)
+router.post("/upload-pfp", upload.single("pfp"), protect, uploadProfilePicture);
 
 export default router;

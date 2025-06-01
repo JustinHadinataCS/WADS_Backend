@@ -688,3 +688,95 @@ export const sendTicketMessage = async (req, res) => {
     });
   }
 };
+
+export const updateTicketStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Invalid Ticket ID" });
+  }
+
+  // Validate status
+  const validStatuses = ["pending", "in_progress", "resolved"];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid status. Must be one of: pending, in_progress, resolved",
+    });
+  }
+
+  try {
+    // Find ticket and verify agent is assigned to it
+    const ticket = await Ticket.findOne({
+      _id: id,
+      "assignedTo.userId": req.user._id,
+    });
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found or not assigned to you",
+      });
+    }
+
+    // Update ticket status
+    const updatedTicket = await Ticket.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    // Create audit log
+    const auditLog = new Audit({
+      ticket: updatedTicket._id,
+      ticketId: updatedTicket._id.toString(),
+      action: "status_changed",
+      fieldChanged: "status",
+      previousValue: ticket.status,
+      newValue: status,
+      performedBy: req.user._id,
+    });
+    await auditLog.save();
+
+    // Create notifications
+    const notificationsToSave = [];
+
+    // User notification
+    const userNotification = new Notification({
+      userId: ticket.user.userId,
+      title: "Ticket Status Updated",
+      content: `Your ticket "${ticket.title}" status has been updated to ${status}.`,
+      type: "ticket",
+      priority: "medium",
+      link: `/tickets/${ticket._id}`,
+    });
+    notificationsToSave.push(userNotification.save());
+
+    // Admin notification
+    const adminNotification = new Notification({
+      title: "Ticket Status Updated",
+      content: `Ticket "${ticket.title}" status has been updated to ${status} by ${req.user.firstName} ${req.user.lastName}.`,
+      type: "ticket",
+      priority: "medium",
+      link: `/tickets/${ticket._id}`,
+      isAdminNotification: true,
+    });
+    notificationsToSave.push(adminNotification.save());
+
+    await Promise.all(notificationsToSave);
+
+    res.status(200).json({
+      success: true,
+      data: updatedTicket,
+    });
+  } catch (error) {
+    console.error("Error updating ticket status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};

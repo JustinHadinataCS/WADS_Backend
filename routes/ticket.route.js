@@ -1,11 +1,21 @@
 import express from "express";
-import { createTicket, deleteTicket, getTicket, getTicketMessages, getTickets, sendTicketMessage, updateTicket, uploadTicketAttachment} from "../controllers/ticket.controller.js";
-import { protect, user } from "../middleware/auth.js";
+import {
+  createTicket,
+  deleteTicket,
+  getTicket,
+  getTicketMessages,
+  getTickets,
+  sendTicketMessage,
+  updateTicket,
+  uploadTicketAttachment,
+  updateTicketStatus,
+} from "../controllers/ticket.controller.js";
+import { protect, user, agent } from "../middleware/auth.js";
 import multer from "multer";
 
 const router = express.Router();
 
-router.use(protect)
+router.use(protect);
 
 /**
  * @swagger
@@ -129,15 +139,15 @@ router.get("/:id/messages", getTicketMessages);
 router.post("/", user, createTicket);
 
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit (adjust as needed)
-    files: 1 // Only allow single file uploads
-  }
+    files: 1, // Only allow single file uploads
+  },
 });
 
-router.post('/:id/attachments', upload.single('file'), uploadTicketAttachment);
+router.post("/:id/attachments", upload.single("file"), uploadTicketAttachment);
 
 router.post("/:id/messages", sendTicketMessage);
 
@@ -175,6 +185,44 @@ router.post("/:id/messages", sendTicketMessage);
  *         description: Ticket updated successfully
  */
 router.put("/:id", updateTicket);
+
+/**
+ * @swagger
+ * /api/tickets/{id}/status:
+ *   put:
+ *     summary: Update ticket status (Agent only)
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, in_progress, resolved]
+ *     responses:
+ *       200:
+ *         description: Ticket status updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Agent access required
+ *       404:
+ *         description: Ticket not found
+ */
+router.put("/:id/status", agent, updateTicketStatus);
 
 /**
  * @swagger
