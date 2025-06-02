@@ -80,7 +80,7 @@ export const createFeedback = async (req, res) => {
             return res.status(400).json({error: "Ticket has not been resolved"})
         }
 
-        const agentId = ticket.assignedTo; 
+        const agentId = ticket.assignedTo.userId; 
 
         if (!agentId) {
             return res.status(400).json({ error: "Ticket has no agent assigned" });
