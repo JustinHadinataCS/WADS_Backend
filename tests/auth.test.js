@@ -12,11 +12,6 @@ process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.NODE_ENV = 'test';
 
 beforeAll(async () => {
-  // Ensure JWT_SECRET is set
-  if (!process.env.JWT_SECRET) {
-    process.env.JWT_SECRET = 'test-jwt-secret';
-  }
-  
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
   await mongoose.connect(mongoUri);
@@ -48,8 +43,8 @@ describe('Authentication Tests', () => {
         .post('/api/users')
         .send(testUser);
 
-      expect(res.status).toBe(201);
-      expect(res.body).toHaveProperty('token');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('accessToken');
       expect(res.body.email).toBe(testUser.email);
     });
 
@@ -88,12 +83,10 @@ describe('Authentication Tests', () => {
         .post('/api/users')
         .send(testUser);
       
-      expect(registerRes.status).toBe(201);
-      console.log('Test user created:', registerRes.body._id);
+      expect(registerRes.status).toBe(200);
     });
 
     it('should login successfully with correct credentials', async () => {
-      console.log('Attempting login with test user credentials');
       const res = await request(app)
         .post('/api/users/login')
         .send({
@@ -101,18 +94,12 @@ describe('Authentication Tests', () => {
           password: testUser.password
         });
 
-      console.log('Login response:', {
-        status: res.status,
-        body: res.body
-      });
-
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('token');
+      expect(res.body).toHaveProperty('accessToken');
       expect(res.body.email).toBe(testUser.email);
     });
 
     it('should not login with incorrect password', async () => {
-      console.log('Attempting login with incorrect password');
       const res = await request(app)
         .post('/api/users/login')
         .send({
@@ -120,28 +107,17 @@ describe('Authentication Tests', () => {
           password: 'wrongpassword'
         });
 
-      console.log('Login response:', {
-        status: res.status,
-        body: res.body
-      });
-
       expect(res.status).toBe(401);
       expect(res.body.message).toContain('Invalid email or password');
     });
 
     it('should not login with non-existent email', async () => {
-      console.log('Attempting login with non-existent email');
       const res = await request(app)
         .post('/api/users/login')
         .send({
           email: 'nonexistent@example.com',
           password: 'password123'
         });
-
-      console.log('Login response:', {
-        status: res.status,
-        body: res.body
-      });
 
       expect(res.status).toBe(401);
       expect(res.body.message).toContain('Invalid email or password');
@@ -181,7 +157,7 @@ describe('Authentication Tests', () => {
       const registerRes = await request(app)
         .post('/api/users')
         .send(testUser);
-      token = registerRes.body.token;
+      token = registerRes.body.accessToken;
     });
 
     it('should access protected route with valid token', async () => {
