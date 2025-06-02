@@ -2,6 +2,10 @@
 
 A comprehensive healthcare management system backend built with Node.js, Express, and MongoDB.
 
+## 🚀 This server is hosted at
+
+https://wads-backend.onrender.com
+
 ## 🚀 Features
 
 - **User Management**
