@@ -157,7 +157,31 @@ router.post('/', admin, createNotification); // Route to create a notification
  */
 router.put('/:notificationId/read', markAsRead); // Route to mark a notification as read
 
-router.put('/mark-all-read', markAllAsRead); // Route to mark a notification as read
+/**
+ * @swagger
+ * /api/notifications/mark-all-read:
+ *   put:
+ *     summary: Mark all notifications as read for the current user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "All notifications marked as read"
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.put('/mark-all-read', markAllAsRead); // Route to mark all notifications as read
 
 /**
  * @swagger

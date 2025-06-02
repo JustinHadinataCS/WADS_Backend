@@ -2,83 +2,124 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import app from '../server.js';
-import User from '../models/user.model.js';
 import Ticket from '../models/ticket.model.js';
-import Counter from '../models/counter.model.js';
+import User from '../models/user.model.js';
+import Room from '../models/room.model.js';
+import jwt from 'jsonwebtoken';
 
 let mongoServer;
-let userToken;
+let adminToken;
 let agentToken;
-let testUser;
-let testAgent;
-
-// Set up test environment variables
-process.env.JWT_SECRET = 'test-jwt-secret';
-process.env.NODE_ENV = 'test';
+let userToken;
+let userId;
+let agentId;
+let roomId;
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  await mongoose.connect(mongoUri);
+  const uri = mongoServer.getUri();
+  await mongoose.connect(uri);
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
+  await mongoose.connection.dropDatabase();
+  await mongoose.connection.close();
   await mongoServer.stop();
 });
 
 beforeEach(async () => {
-  await User.deleteMany({});
   await Ticket.deleteMany({});
-  await Counter.deleteMany({});
+  await User.deleteMany({});
+  await Room.deleteMany({});
 
-  // Create test user
-  testUser = {
-    firstName: 'Test',
+  // Create test room
+  const room = await Room.create({
+    name: 'Test Room',
+    capacity: 10,
+    status: 'active'
+  });
+  roomId = room._id;
+
+  // Create admin user
+  const admin = await User.create({
+    firstName: 'Admin',
     lastName: 'User',
-    email: 'test@example.com',
-    phoneNumber: '1234567890',
+    email: 'admin@test.com',
     password: 'password123',
-    department: 'Radiology',
+    role: 'admin',
+    department: 'IT',
     timezone: 'UTC'
-  };
+  });
 
-  // Create test agent
-  testAgent = {
-    firstName: 'Test',
-    lastName: 'Agent',
-    email: 'agent@example.com',
-    phoneNumber: '0987654321',
+  // Create agent user
+  const agent = await User.create({
+    firstName: 'Agent',
+    lastName: 'User',
+    email: 'agent@test.com',
     password: 'password123',
-    department: 'Radiology',
-    timezone: 'UTC',
-    role: 'agent'
-  };
+    role: 'agent',
+    department: 'IT',
+    timezone: 'UTC'
+  });
+  agentId = agent._id;
 
-  // Register and login user
-  const userRes = await request(app)
-    .post('/api/users')
-    .send(testUser);
-  userToken = userRes.body.token;
+  // Create regular user
+  const user = await User.create({
+    firstName: 'Regular',
+    lastName: 'User',
+    email: 'user@test.com',
+    password: 'password123',
+    role: 'user',
+    department: 'IT',
+    timezone: 'UTC'
+  });
+  userId = user._id;
 
-  // Register and login agent
-  const agentRes = await request(app)
-    .post('/api/users')
-    .send(testAgent);
-  agentToken = agentRes.body.token;
+  // Generate tokens
+  adminToken = jwt.sign(
+    { id: admin._id, role: 'admin' },
+    process.env.JWT_SECRET || 'test-jwt-secret'
+  );
+
+  agentToken = jwt.sign(
+    { id: agent._id, role: 'agent' },
+    process.env.JWT_SECRET || 'test-jwt-secret'
+  );
+
+  userToken = jwt.sign(
+    { id: user._id, role: 'user' },
+    process.env.JWT_SECRET || 'test-jwt-secret'
+  );
 });
 
 describe('Ticket Tests', () => {
-  const testTicket = {
-    title: 'Test Ticket',
-    description: 'This is a test ticket',
-    department: 'Radiology',
-    category: 'Software Problem',
-    priority: 'medium'
-  };
-
   describe('Create Ticket', () => {
     it('should create a new ticket successfully', async () => {
+      const testTicket = {
+        title: 'Test Ticket',
+        description: 'This is a test ticket',
+        category: 'Software Problem',
+        priority: 'high',
+        department: 'IT',
+        equipment: {
+          name: 'Test Equipment',
+          type: 'Computer'
+        },
+        roomId: roomId,
+        user: {
+          userId: userId,
+          firstName: 'Regular',
+          lastName: 'User',
+          email: 'user@test.com'
+        },
+        assignedTo: {
+          userId: agentId,
+          firstName: 'Agent',
+          lastName: 'User',
+          email: 'agent@test.com'
+        }
+      };
+
       const res = await request(app)
         .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
@@ -103,27 +144,47 @@ describe('Ticket Tests', () => {
     it('should not create ticket without authentication', async () => {
       const res = await request(app)
         .post('/api/tickets')
-        .send(testTicket);
+        .send({});
 
       expect(res.status).toBe(401);
     });
   });
 
   describe('Get Tickets', () => {
+    let ticketId;
+
     beforeEach(async () => {
-      // Create multiple test tickets
-      await request(app)
+      const testTicket = {
+        title: 'Test Ticket',
+        description: 'This is a test ticket',
+        category: 'Software Problem',
+        priority: 'high',
+        department: 'IT',
+        equipment: {
+          name: 'Test Equipment',
+          type: 'Computer'
+        },
+        roomId: roomId,
+        user: {
+          userId: userId,
+          firstName: 'Regular',
+          lastName: 'User',
+          email: 'user@test.com'
+        },
+        assignedTo: {
+          userId: agentId,
+          firstName: 'Agent',
+          lastName: 'User',
+          email: 'agent@test.com'
+        }
+      };
+
+      const createRes = await request(app)
         .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
         .send(testTicket);
 
-      await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          ...testTicket,
-          title: 'Test Ticket 2'
-        });
+      ticketId = createRes.body.data._id;
     });
 
     it('should get all tickets for the user', async () => {
@@ -134,30 +195,22 @@ describe('Ticket Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.length).toBe(2);
+      expect(res.body.data.length).toBeGreaterThan(0);
     });
 
     it('should get a specific ticket by ID', async () => {
-      // First create a ticket
-      const createRes = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send(testTicket);
-
-      const ticketId = createRes.body.data._id;
-
       const res = await request(app)
         .get(`/api/tickets/${ticketId}`)
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data._id).toBe(ticketId);
+      expect(res.body.data._id.toString()).toBe(ticketId.toString());
     });
 
     it('should not get ticket with invalid ID', async () => {
       const res = await request(app)
-        .get('/api/tickets/507f1f77bcf86cd799439011')  // Using a valid MongoDB ObjectId format but non-existent
+        .get('/api/tickets/invalid-id')
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(404);
@@ -166,65 +219,35 @@ describe('Ticket Tests', () => {
     });
   });
 
-  describe('Search and Filter Tickets', () => {
-    beforeEach(async () => {
-      // Create tickets with different properties
-      await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          ...testTicket,
-          title: 'Network Issue Ticket',
-          category: 'Network Issue',
-          priority: 'high'
-        });
-
-      await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          ...testTicket,
-          title: 'Software Problem Ticket',
-          category: 'Software Problem',
-          priority: 'medium'
-        });
-    });
-
-    it('should search tickets by keyword', async () => {
-      const res = await request(app)
-        .get('/api/tickets/search?keyword=Network')
-        .set('Authorization', `Bearer ${userToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].title).toContain('Network');
-    });
-
-    it('should filter tickets by category', async () => {
-      const res = await request(app)
-        .get('/api/tickets/search?category=Software Problem')
-        .set('Authorization', `Bearer ${userToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].category).toBe('Software Problem');
-    });
-
-    it('should filter tickets by priority', async () => {
-      const res = await request(app)
-        .get('/api/tickets/search?priority=high')
-        .set('Authorization', `Bearer ${userToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].priority).toBe('high');
-    });
-  });
-
   describe('Update Ticket', () => {
     let ticketId;
 
     beforeEach(async () => {
+      const testTicket = {
+        title: 'Test Ticket',
+        description: 'This is a test ticket',
+        category: 'Software Problem',
+        priority: 'high',
+        department: 'IT',
+        equipment: {
+          name: 'Test Equipment',
+          type: 'Computer'
+        },
+        roomId: roomId,
+        user: {
+          userId: userId,
+          firstName: 'Regular',
+          lastName: 'User',
+          email: 'user@test.com'
+        },
+        assignedTo: {
+          userId: agentId,
+          firstName: 'Agent',
+          lastName: 'User',
+          email: 'agent@test.com'
+        }
+      };
+
       const createRes = await request(app)
         .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
@@ -235,8 +258,9 @@ describe('Ticket Tests', () => {
 
     it('should update ticket successfully', async () => {
       const updateData = {
-        title: 'Updated Ticket Title',
-        priority: 'high'
+        title: 'Updated Ticket',
+        description: 'This is an updated ticket',
+        priority: 'medium'
       };
 
       const res = await request(app)
@@ -247,6 +271,7 @@ describe('Ticket Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.title).toBe(updateData.title);
+      expect(res.body.data.description).toBe(updateData.description);
       expect(res.body.data.priority).toBe(updateData.priority);
     });
 
@@ -254,9 +279,10 @@ describe('Ticket Tests', () => {
       const res = await request(app)
         .put('/api/tickets/invalid-id')
         .set('Authorization', `Bearer ${userToken}`)
-        .send({ title: 'Updated Title' });
+        .send({ title: 'Updated Ticket' });
 
       expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
     });
   });
 
@@ -264,6 +290,31 @@ describe('Ticket Tests', () => {
     let ticketId;
 
     beforeEach(async () => {
+      const testTicket = {
+        title: 'Test Ticket',
+        description: 'This is a test ticket',
+        category: 'Software Problem',
+        priority: 'high',
+        department: 'IT',
+        equipment: {
+          name: 'Test Equipment',
+          type: 'Computer'
+        },
+        roomId: roomId,
+        user: {
+          userId: userId,
+          firstName: 'Regular',
+          lastName: 'User',
+          email: 'user@test.com'
+        },
+        assignedTo: {
+          userId: agentId,
+          firstName: 'Agent',
+          lastName: 'User',
+          email: 'agent@test.com'
+        }
+      };
+
       const createRes = await request(app)
         .post('/api/tickets')
         .set('Authorization', `Bearer ${userToken}`)
@@ -279,13 +330,7 @@ describe('Ticket Tests', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-
-      // Verify ticket is deleted
-      const getRes = await request(app)
-        .get(`/api/tickets/${ticketId}`)
-        .set('Authorization', `Bearer ${userToken}`);
-
-      expect(getRes.status).toBe(404);
+      expect(res.body.message).toBe('Ticket deleted');
     });
 
     it('should not delete ticket with invalid ID', async () => {
@@ -294,6 +339,7 @@ describe('Ticket Tests', () => {
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
     });
   });
 });

@@ -6,7 +6,9 @@ import User from '../models/user.model.js';
 import Ticket from '../models/ticket.model.js';
 import Feedback from '../models/feedback.model.js';
 import Audit from '../models/audit.model.js';
-import responseTime from '../models/responseTime.model.js';
+import ResponseTime from '../models/responseTime.model.js';
+import Room from '../models/room.model.js';
+import jwt from 'jsonwebtoken';
 
 let mongoServer;
 let adminToken;
@@ -34,7 +36,7 @@ beforeEach(async () => {
   await Ticket.deleteMany({});
   await Feedback.deleteMany({});
   await Audit.deleteMany({});
-  await responseTime.deleteMany({});
+  await ResponseTime.deleteMany({});
 
   // Create test users for different roles
   const adminUser = await User.create({
@@ -74,19 +76,29 @@ beforeEach(async () => {
   const adminLogin = await request(app)
     .post('/api/users/login')
     .send({ email: 'admin@test.com', password: 'password123' });
-  adminToken = adminLogin.body.token;
+  adminToken = jwt.sign(
+    { id: adminUser._id, role: 'admin' },
+    process.env.JWT_SECRET || 'test-jwt-secret'
+  );
 
   const agentLogin = await request(app)
     .post('/api/users/login')
     .send({ email: 'agent@test.com', password: 'password123' });
-  agentToken = agentLogin.body.token;
+  agentToken = jwt.sign(
+    { id: agentUser._id, role: 'agent' },
+    process.env.JWT_SECRET || 'test-jwt-secret'
+  );
 
   const userLogin = await request(app)
     .post('/api/users/login')
     .send({ email: 'user@test.com', password: 'password123' });
-  userToken = userLogin.body.token;
+  userToken = jwt.sign(
+    { id: regularUser._id, role: 'user' },
+    process.env.JWT_SECRET || 'test-jwt-secret'
+  );
 
   // Create some test data
+  const room = await Room.create({ name: 'Test Room' });
   const testTicket = await Ticket.create({
     title: 'Test Ticket 1',
     description: 'Test Description',
@@ -104,7 +116,13 @@ beforeEach(async () => {
       lastName: regularUser.lastName,
       email: regularUser.email
     },
-    assignedTo: agentUser._id,
+    assignedTo: {
+      userId: agentUser._id,
+      firstName: agentUser.firstName,
+      lastName: agentUser.lastName,
+      email: agentUser.email
+    },
+    roomId: room._id,
     activityLog: [{
       action: 'created',
       performedBy: regularUser._id,
@@ -116,21 +134,27 @@ beforeEach(async () => {
     rating: 'positive',
     ticket: testTicket._id,
     createdBy: regularUser._id,
-    agent: agentUser._id
+    agent: agentUser._id,
+    comment: 'Great service!',
+    timestamp: new Date()
   });
 
   await Audit.create({
     ticket: testTicket._id,
+    ticketId: testTicket._id.toString(),
     action: 'created',
     performedBy: regularUser._id,
     fieldChanged: 'status',
     previousValue: null,
-    newValue: 'pending'
+    newValue: 'pending',
+    timestamp: new Date()
   });
 
-  await responseTime.create({
+  await ResponseTime.create({
     timestamp: new Date(),
-    durationMs: 100
+    durationMs: 100,
+    endpoint: '/api/dashboard/overview',
+    method: 'GET'
   });
 });
 
@@ -138,37 +162,40 @@ describe('Dashboard Tests', () => {
   describe('Admin Dashboard', () => {
     it('should get ticket overview', async () => {
       const res = await request(app)
-        .get('/api/dashboard/overview')
+        .get('/api/dashboard/global-stats')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('total');
-      expect(res.body).toHaveProperty('pending');
-      expect(res.body).toHaveProperty('inProgress');
-      expect(res.body).toHaveProperty('resolved');
+      expect(res.body).toHaveProperty('ticketStats');
+      expect(res.body.ticketStats).toHaveProperty('total');
+      expect(res.body.ticketStats).toHaveProperty('pending');
+      expect(res.body.ticketStats).toHaveProperty('inProgress');
+      expect(res.body.ticketStats).toHaveProperty('resolved');
     });
 
     it('should get user statistics', async () => {
       const res = await request(app)
-        .get('/api/dashboard/user-stats')
+        .get('/api/dashboard/global-stats')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('totalUsers');
-      expect(res.body).toHaveProperty('activeToday');
-      expect(res.body).toHaveProperty('newUsers');
-      expect(res.body).toHaveProperty('totalAgents');
+      expect(res.body).toHaveProperty('userStats');
+      expect(res.body.userStats).toHaveProperty('totalUsers');
+      expect(res.body.userStats).toHaveProperty('activeToday');
+      expect(res.body.userStats).toHaveProperty('newUsers');
+      expect(res.body.userStats).toHaveProperty('totalAgents');
     });
 
     it('should get customer satisfaction metrics', async () => {
       const res = await request(app)
-        .get('/api/dashboard/customer-satisfaction')
+        .get('/api/dashboard/global-stats')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('positive');
-      expect(res.body).toHaveProperty('neutral');
-      expect(res.body).toHaveProperty('negative');
+      expect(res.body).toHaveProperty('feedbackStats');
+      expect(res.body.feedbackStats).toHaveProperty('positive');
+      expect(res.body.feedbackStats).toHaveProperty('neutral');
+      expect(res.body.feedbackStats).toHaveProperty('negative');
     });
 
     it('should get recent activity', async () => {
@@ -177,8 +204,8 @@ describe('Dashboard Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('activities');
-      expect(Array.isArray(res.body.activities)).toBe(true);
+      expect(res.body).toHaveProperty('data');
+      expect(Array.isArray(res.body.data)).toBe(true);
     });
 
     it('should get server response time metrics', async () => {
@@ -245,15 +272,15 @@ describe('Dashboard Tests', () => {
   describe('Authorization Tests', () => {
     it('should not allow user to access admin endpoints', async () => {
       const res = await request(app)
-        .get('/api/dashboard/overview')
+        .get('/api/dashboard/global-stats')
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(401);
-    });``
+    });
 
     it('should not allow agent to access admin endpoints', async () => {
       const res = await request(app)
-        .get('/api/dashboard/overview')
+        .get('/api/dashboard/global-stats')
         .set('Authorization', `Bearer ${agentToken}`);
 
       expect(res.status).toBe(401);

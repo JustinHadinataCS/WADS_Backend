@@ -64,6 +64,10 @@ export const getTickets = async (req, res) => {
 export const getTicket = async (req, res) => {
   const { id } = req.params;
   try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: "Ticket not found" });
+    }
+
     let query = { _id: id };
 
     // Different query based on user role
@@ -77,9 +81,7 @@ export const getTicket = async (req, res) => {
     const ticket = await Ticket.findOne(query);
 
     if (!ticket) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Ticket not found" });
+      return res.status(404).json({ success: false, message: "Ticket not found" });
     }
 
     res.status(200).json({ success: true, data: ticket });

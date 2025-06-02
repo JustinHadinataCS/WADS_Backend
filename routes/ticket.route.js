@@ -147,8 +147,91 @@ const upload = multer({
   },
 });
 
+/**
+ * @swagger
+ * /api/tickets/{id}/attachments:
+ *   post:
+ *     summary: Upload an attachment to a ticket
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: File uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 filename:
+ *                   type: string
+ *                 url:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Ticket not found
+ *       413:
+ *         description: File too large
+ */
 router.post("/:id/attachments", upload.single("file"), uploadTicketAttachment);
 
+/**
+ * @swagger
+ * /api/tickets/{id}/messages:
+ *   post:
+ *     summary: Send a message in a ticket
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Message content
+ *     responses:
+ *       201:
+ *         description: Message sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/TicketMessage'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Ticket not found
+ */
 router.post("/:id/messages", sendTicketMessage);
 
 /**
